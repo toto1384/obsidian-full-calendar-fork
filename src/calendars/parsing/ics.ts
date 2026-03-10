@@ -103,9 +103,12 @@ export function getEventsFromICS(text: string): OFCEvent[] {
 	const jCalData = ical.parse(text);
 	const component = new ical.Component(jCalData);
 
-	// TODO: Timezone support
-	// const tzc = component.getAllSubcomponents("vtimezone");
-	// const tz = new ical.Timezone(tzc[0]);
+	// Register all VTIMEZONE components so ical.js can convert times correctly
+	const vtimezones = component.getAllSubcomponents("vtimezone");
+	for (const vtz of vtimezones) {
+		const tz = new ical.Timezone(vtz);
+		ical.TimezoneService.register(tz.tzid, tz);
+	}
 
 	const events: ical.Event[] = component
 		.getAllSubcomponents("vevent")
@@ -147,7 +150,7 @@ export function getEventsFromICS(text: string): OFCEvent[] {
 			);
 			continue;
 		}
-		baseEvent.skipDates.push(event.date);
+		baseEvent.skipDates?.push(event.date);
 	}
 
 	const allEvents = Object.values(baseEvents).concat(

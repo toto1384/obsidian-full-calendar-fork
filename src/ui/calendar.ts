@@ -9,65 +9,29 @@ import {
 	EventHoveringArg,
 	EventSourceInput,
 } from "@fullcalendar/core";
-import { DateClickArg } from "@fullcalendar/interaction";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import rrulePlugin from "@fullcalendar/rrule";
-import listPlugin from "@fullcalendar/list";
-import interactionPlugin from "@fullcalendar/interaction";
 import googleCalendarPlugin from "@fullcalendar/google-calendar";
 import iCalendarPlugin from "@fullcalendar/icalendar";
-import moment from "moment";
+import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
+import listPlugin from "@fullcalendar/list";
+import rrulePlugin from "@fullcalendar/rrule";
+import timeGridPlugin from "@fullcalendar/timegrid";
 import { DateTime } from "luxon";
-import { getTzInfo } from "./tzRegistry";
+import moment from "moment";
 
-
-// There is an issue with FullCalendar RRule support around DST boundaries which is fixed by this monkeypatch:
-// https://github.com/fullcalendar/fullcalendar/issues/5273#issuecomment-1360459342
-// We preserve the wall-clock time from dtstart for all occurrences.
-// For events with original timezone info, we properly convert the wall-clock time
-// from the original timezone to local time for each occurrence date.
-rrulePlugin.recurringTypes[0].expand = function(errd, fr, de) {
-	const dtstart = errd.rruleSet._dtstart;
-
-	// Check if we have original timezone info for this event
-	const tzInfo = getTzInfo(dtstart);
-	console.log(`RRule expand: dtstart=${dtstart.getTime()}, tzInfo=${tzInfo ? JSON.stringify(tzInfo) : 'not found'}`);
-
+rrulePlugin.recurringTypes[0].expand = function (errd, fr, de) {
+	const hours = errd.rruleSet._dtstart.getHours();
 	return errd.rruleSet
 		.between(de.toDate(fr.start), de.toDate(fr.end), true)
 		.map((d: Date) => {
-			if (tzInfo) {
-				// Parse the original wall-clock time
-				const [hours, minutes] = tzInfo.originalStartTime.split(':').map(Number);
-
-				// Create a DateTime in the original timezone for this occurrence date
-				const dtInOriginalTz = DateTime.fromObject({
-					year: d.getFullYear(),
-					month: d.getMonth() + 1, // Luxon months are 1-indexed
-					day: d.getDate(),
-					hour: hours,
-					minute: minutes,
-				}, { zone: tzInfo.originalTz });
-
-				// Convert to local timezone
-				const localDt = dtInOriginalTz.setZone('local');
-
-				console.log(`RRule expand with TZ: ${tzInfo.originalStartTime} ${tzInfo.originalTz} on ${d.toDateString()} -> ${localDt.toISO()} local`);
-
-				return localDt.toJSDate();
-			}
-
-			// Fallback: preserve wall-clock time from dtstart (original behavior)
-			const hours = dtstart.getHours();
-			const minutes = dtstart.getMinutes();
-
 			return new Date(
-				d.getFullYear(),
-				d.getMonth(),
-				d.getDate(),
-				hours,
-				minutes
+				Date.UTC(
+					d.getFullYear(),
+					d.getMonth(),
+					d.getDate(),
+					hours,
+					d.getMinutes(),
+				),
 			);
 		});
 };
@@ -80,7 +44,7 @@ interface ExtraRenderProps {
 		startDate: Date,
 		endDate: Date,
 		allDay: boolean,
-		viewType: string
+		viewType: string,
 	) => Promise<void>;
 	modifyEvent?: (event: EventApi, oldEvent: EventApi) => Promise<boolean>;
 	eventMouseEnter?: (info: EventHoveringArg) => void;
@@ -89,7 +53,7 @@ interface ExtraRenderProps {
 	timeFormat24h?: boolean;
 	openContextMenuForEvent?: (
 		event: EventApi,
-		mouseEvent: MouseEvent
+		mouseEvent: MouseEvent,
 	) => Promise<void>;
 	toggleTask?: (event: EventApi, isComplete: boolean) => Promise<boolean>;
 	forceNarrow?: boolean;
@@ -98,7 +62,7 @@ interface ExtraRenderProps {
 export function renderCalendar(
 	containerEl: HTMLElement,
 	eventSources: EventSourceInput[],
-	settings?: Omit<CalendarOptions, "select"> & ExtraRenderProps
+	settings?: Omit<CalendarOptions, "select"> & ExtraRenderProps,
 ): Calendar {
 	const isMobile = window.innerWidth < 500;
 	const isNarrow = settings?.forceNarrow || isMobile;
@@ -150,14 +114,11 @@ export function renderCalendar(
 		scrollTimeReset: false,
 		dayMaxEvents: true,
 
-
-
-		slotDuration: '00:15:00',
-		slotLabelInterval: '01:00:00',
+		slotDuration: "00:15:00",
+		slotLabelInterval: "01:00:00",
 		// slotHeight: 18,
 		// slotMinHeight: 15,
 		customButtons: settings?.customButtons,
-
 
 		headerToolbar: settings?.headerToolbar,
 		footerToolbar: settings?.footerToolbar,
@@ -216,7 +177,7 @@ export function renderCalendar(
 
 			// Only apply to timeGrid views (day, week, 3-day)
 			const viewType = arg.view.type;
-			if (!viewType.startsWith('timeGrid')) {
+			if (!viewType.startsWith("timeGrid")) {
 				return [];
 			}
 
@@ -224,15 +185,15 @@ export function renderCalendar(
 
 			// 7am to 1pm (07:00-13:00) - Morning/Green
 			if (hour >= 7 && hour < 13) {
-				return ['ofc-morning-slot'];
+				return ["ofc-morning-slot"];
 			}
 			// 1pm to 5pm (13:00-17:00) - Afternoon/Blue
 			else if (hour >= 13 && hour < 17) {
-				return ['ofc-afternoon-slot'];
+				return ["ofc-afternoon-slot"];
 			}
 			// 5pm to 11pm (17:00-23:00) - Evening/Yellow
 			else if (hour >= 17 && hour < 23) {
-				return ['ofc-evening-slot'];
+				return ["ofc-evening-slot"];
 			}
 
 			// Return empty array for other times (11pm-7am)
@@ -256,64 +217,78 @@ export function renderCalendar(
 
 		dayHeaderDidMount: ({ el, date }) => {
 			if (dayHeaderClick) {
-				el.addEventListener('click', (e) => {
+				el.addEventListener("click", (e) => {
 					e.preventDefault();
 					dayHeaderClick(date);
 				});
-				el.style.cursor = 'pointer';
+				el.style.cursor = "pointer";
 			}
 
 			// Add habits percent to day header with retry mechanism
 			const addHabitsPercent = () => {
 				try {
-					const dateFile = moment(date).format('YYYY-MM-DD');
-					if ((window as any).habitUtils && (window as any).habitUtils.habitsPercentByName) {
-						const habitsResult = (window as any).habitUtils.habitsPercentByName(dateFile);
-						if (habitsResult && habitsResult.habitsPercent !== undefined && habitsResult.habitsPercent !== null) {
-							const percent = Math.round(habitsResult.habitsPercent);
+					const dateFile = moment(date).format("YYYY-MM-DD");
+					if (
+						(window as any).habitUtils &&
+						(window as any).habitUtils.habitsPercentByName
+					) {
+						const habitsResult = (
+							window as any
+						).habitUtils.habitsPercentByName(dateFile);
+						if (
+							habitsResult &&
+							habitsResult.habitsPercent !== undefined &&
+							habitsResult.habitsPercent !== null
+						) {
+							const percent = Math.round(
+								habitsResult.habitsPercent,
+							);
 
 							// Make parent relative for absolute positioning
-							el.style.position = 'relative';
-							el.style.paddingLeft = '18px'; // Make room for the circle
+							el.style.position = "relative";
+							el.style.paddingLeft = "18px"; // Make room for the circle
 
 							// Create circle indicator
-							const circleContainer = document.createElement('span');
-							circleContainer.style.position = 'absolute';
-							circleContainer.style.left = '2px';
-							circleContainer.style.top = '50%';
-							circleContainer.style.transform = 'translateY(-50%)';
-							circleContainer.style.width = '12px';
-							circleContainer.style.height = '12px';
+							const circleContainer =
+								document.createElement("span");
+							circleContainer.style.position = "absolute";
+							circleContainer.style.left = "2px";
+							circleContainer.style.top = "50%";
+							circleContainer.style.transform =
+								"translateY(-50%)";
+							circleContainer.style.width = "12px";
+							circleContainer.style.height = "12px";
 
-							const circle = document.createElement('div');
-							circle.style.width = '12px';
-							circle.style.height = '12px';
-							circle.style.borderRadius = '50%';
-							circle.style.position = 'relative';
-							circle.style.overflow = 'hidden';
-							circle.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+							const circle = document.createElement("div");
+							circle.style.width = "12px";
+							circle.style.height = "12px";
+							circle.style.borderRadius = "50%";
+							circle.style.position = "relative";
+							circle.style.overflow = "hidden";
+							circle.style.backgroundColor =
+								"rgba(255, 255, 255, 0.3)";
 
 							// Determine color based on percentage
 							let fillColor;
 							if (percent >= 65) {
-								fillColor = '#22c55e'; // Green
+								fillColor = "#22c55e"; // Green
 							} else if (percent >= 40) {
-								fillColor = '#eab308'; // Yellow
+								fillColor = "#eab308"; // Yellow
 							} else {
-								fillColor = '#ef4444'; // Red
+								fillColor = "#ef4444"; // Red
 							}
 
 							// Create fill section based on percentage
-							const fill = document.createElement('div');
-							fill.style.position = 'absolute';
-							fill.style.top = '0';
-							fill.style.left = '0';
-							fill.style.width = '100%';
+							const fill = document.createElement("div");
+							fill.style.position = "absolute";
+							fill.style.top = "0";
+							fill.style.left = "0";
+							fill.style.width = "100%";
 							fill.style.height = `${percent}%`;
 							fill.style.backgroundColor = fillColor;
-							fill.style.borderRadius = '50%';
+							fill.style.borderRadius = "50%";
 							fill.style.transform = `rotate(${(percent / 100) * 360}deg)`;
-							fill.style.transformOrigin = 'center bottom';
+							fill.style.transformOrigin = "center bottom";
 
 							// Better approach: use conic-gradient for accurate percentage display
 							circle.style.background = `conic-gradient(${fillColor} 0deg ${(percent / 100) * 360}deg, rgba(255, 255, 255, 0.3) ${(percent / 100) * 360}deg 360deg)`;
@@ -325,7 +300,11 @@ export function renderCalendar(
 					}
 					return false; // Function not available yet
 				} catch (error) {
-					console.warn('Failed to get habits percent for date:', date, error);
+					console.warn(
+						"Failed to get habits percent for date:",
+						date,
+						error,
+					);
 					return true; // Don't retry on actual errors
 				}
 			};
@@ -346,11 +325,13 @@ export function renderCalendar(
 
 		eventDidMount: ({ event, el, textColor }) => {
 			// Add data attribute for vimium mode matching
-			el.setAttribute('data-fc-event-id', event.id);
+			el.setAttribute("data-fc-event-id", event.id);
 
 			el.addEventListener("contextmenu", (e) => {
 				e.preventDefault();
-				if (!isMobile) openContextMenuForEvent && openContextMenuForEvent(event, e);
+				if (!isMobile)
+					openContextMenuForEvent &&
+						openContextMenuForEvent(event, e);
 			});
 
 			// Depending on the view, we should put the checkbox in a different spot.
@@ -359,16 +340,22 @@ export function renderCalendar(
 				el.querySelector(".fc-event-title") ||
 				el.querySelector(".fc-list-event-title");
 
-			if (event.start && event.end && moment(event.end).diff(event.start, "minutes") > 30) {
+			if (
+				event.start &&
+				event.end &&
+				moment(event.end).diff(event.start, "minutes") > 30
+			) {
 				const duration = document.createElement("p");
-				duration.textContent = calculateDuration(event.start, event.end)
+				duration.textContent = calculateDuration(
+					event.start,
+					event.end,
+				);
 				duration.style.fontSize = "10px";
-				duration.style.position = 'absolute';
+				duration.style.position = "absolute";
 				duration.style.bottom = "0";
 				duration.style.right = "0";
 
-				el.querySelector('.fc-event-main-frame')?.append(duration)
-
+				el.querySelector(".fc-event-main-frame")?.append(duration);
 			}
 			if (toggleTask) {
 				if (event.extendedProps.isTask) {
@@ -381,7 +368,7 @@ export function renderCalendar(
 						if (e.target) {
 							let ret = await toggleTask(
 								event,
-								(e.target as HTMLInputElement).checked
+								(e.target as HTMLInputElement).checked,
 							);
 							if (!ret) {
 								(e.target as HTMLInputElement).checked = !(
@@ -403,7 +390,6 @@ export function renderCalendar(
 
 					container?.addClass("ofc-has-checkbox");
 					container?.prepend(checkbox);
-
 				}
 			}
 		},
@@ -412,11 +398,11 @@ export function renderCalendar(
 	});
 
 	setInterval(() => {
-		cal?.refetchEvents()
+		cal?.refetchEvents();
 	}, 30000);
 
 	function calculateDuration(start: Date, end: Date) {
-		const duration = moment(end).diff(moment(start), 'minutes');
+		const duration = moment(end).diff(moment(start), "minutes");
 		const hours = Math.floor(duration / 60);
 		const minutes = duration % 60;
 
