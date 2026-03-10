@@ -27,6 +27,8 @@ export interface FullCalendarSettings {
     };
     timeFormat24h: boolean;
     clickToCreateEventFromMonthView: boolean;
+
+    zoom: number;
 }
 
 export const DEFAULT_SETTINGS: FullCalendarSettings = {
@@ -38,6 +40,7 @@ export const DEFAULT_SETTINGS: FullCalendarSettings = {
         mobile: "timeGrid3Days",
     },
     timeFormat24h: false,
+    zoom: 12,
     clickToCreateEventFromMonthView: true,
 };
 
@@ -83,13 +86,13 @@ export function addCalendarButton(
         .setDesc("Add calendar")
         .addDropdown(
             (d) =>
-                (dropdown = d.addOptions({
-                    local: "Full note",
-                    dailynote: "Daily Note",
-                    icloud: "iCloud",
-                    caldav: "CalDAV",
-                    ical: "Remote (.ics format)",
-                }))
+            (dropdown = d.addOptions({
+                local: "Full note",
+                dailynote: "Daily Note",
+                icloud: "iCloud",
+                caldav: "CalDAV",
+                ical: "Remote (.ics format)",
+            }))
         )
         .addExtraButton((button) => {
             button.setTooltip("Add Calendar");
@@ -101,12 +104,12 @@ export function addCalendarButton(
                         listUsedDirectories
                             ? listUsedDirectories
                             : () =>
-                                  plugin.settings.calendarSources
-                                      .map(
-                                          (s) =>
-                                              s.type === "local" && s.directory
-                                      )
-                                      .filter((s): s is string => !!s)
+                                plugin.settings.calendarSources
+                                    .map(
+                                        (s) =>
+                                            s.type === "local" && s.directory
+                                    )
+                                    .filter((s): s is string => !!s)
                     )();
                     let headings: string[] = [];
                     let { template } = getDailyNoteSettings();

@@ -3,6 +3,8 @@ import { OFCEvent } from "../types";
 
 import { DateTime, Duration } from "luxon";
 import { rrulestr } from "rrule";
+import moment from "moment";
+import { registerTz } from "./tzRegistry";
 
 /*
  * Functions for converting between the types used by the FullCalendar view plugin and types used internally by Obsidian Full Calendar.
@@ -96,9 +98,9 @@ export function dateEndpointsToFrontmatter(
         ...(allDay
             ? {}
             : {
-                  startTime: getTime(start),
-                  endTime: getTime(end),
-              }),
+                startTime: getTime(start),
+                endTime: getTime(end),
+            }),
     };
 }
 
@@ -148,7 +150,7 @@ export function toEventInput(
             return null;
         }
         // NOTE: how exdates are handled does not support events which recur more than once per day.
-        const exdate = frontmatter.skipDates
+        const exdate = (frontmatter.skipDates ?? [])
             .map((d) => {
                 // Can't do date arithmetic because timezone might change for different exdates due to DST.
                 // RRule only has one dtstart that doesn't know about DST/timezone changes.
@@ -160,14 +162,30 @@ export function toEventInput(
             })
             .flatMap((d) => (d ? d : []));
 
+        const dtstartJs = dtstart.toJSDate();
+
+        // Register timezone info for DST-aware recurring event expansion
+        if (frontmatter.originalTz && frontmatter.originalStartTime) {
+            console.log(`Registering TZ: "${frontmatter.title}" - ${frontmatter.originalStartTime} ${frontmatter.originalTz} (dtstart=${dtstartJs.getTime()})`);
+            registerTz(dtstartJs, {
+                originalTz: frontmatter.originalTz,
+                originalStartTime: frontmatter.originalStartTime,
+            });
+        }
+
         event = {
             id,
             title: frontmatter.title,
             allDay: frontmatter.allDay,
             rrule: rrulestr(frontmatter.rrule, {
-                dtstart: dtstart.toJSDate(),
+                dtstart: dtstartJs,
             }).toString(),
             exdate,
+            extendedProps: {
+                // Pass through original timezone info for DST-aware recurring event expansion
+                originalTz: frontmatter.originalTz,
+                originalStartTime: frontmatter.originalStartTime,
+            },
         };
 
         if (!frontmatter.allDay) {
@@ -183,7 +201,9 @@ export function toEventInput(
                     });
                 }
             }
+
         }
+        // console.log("🚀 ~ event:", event)
     } else if (frontmatter.type === "single") {
         if (!frontmatter.allDay) {
             const start = combineDateTimeStrings(
@@ -242,29 +262,29 @@ export function fromEventApi(event: EventApi): OFCEvent {
         ...(event.allDay
             ? { allDay: true }
             : {
-                  allDay: false,
-                  startTime: getTime(event.start as Date),
-                  endTime: getTime(event.end as Date),
-              }),
+                allDay: false,
+                startTime: getTime(event.start as Date),
+                endTime: getTime(event.end as Date),
+            }),
 
         ...(isRecurring
             ? {
-                  type: "recurring",
-                  daysOfWeek: event.extendedProps.daysOfWeek.map(
-                      (i: number) => DAYS[i]
-                  ),
-                  startRecur:
-                      event.extendedProps.startRecur &&
-                      getDate(event.extendedProps.startRecur),
-                  endRecur:
-                      event.extendedProps.endRecur &&
-                      getDate(event.extendedProps.endRecur),
-              }
+                type: "recurring",
+                daysOfWeek: event.extendedProps.daysOfWeek.map(
+                    (i: number) => DAYS[i]
+                ),
+                startRecur:
+                    event.extendedProps.startRecur &&
+                    getDate(event.extendedProps.startRecur),
+                endRecur:
+                    event.extendedProps.endRecur &&
+                    getDate(event.extendedProps.endRecur),
+            }
             : {
-                  type: "single",
-                  date: startDate,
-                  ...(startDate !== endDate ? { endDate } : { endDate: null }),
-                  completed: event.extendedProps.taskCompleted,
-              }),
+                type: "single",
+                date: startDate,
+                ...(startDate !== endDate ? { endDate } : { endDate: null }),
+                completed: event.extendedProps.taskCompleted,
+            }),
     };
 }

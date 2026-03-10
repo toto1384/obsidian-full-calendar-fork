@@ -20,7 +20,8 @@ export function launchCreateModal(
                 name: cal.name,
             };
         });
-    new ReactModal(plugin.app, async (closeModal) =>
+
+    const modal = new ReactModal(plugin.app, async (closeModal) =>
         React.createElement(EditEvent, {
             initialEvent: partialEvent,
             calendars,
@@ -28,6 +29,7 @@ export function launchCreateModal(
             submit: async (data, calendarIndex) => {
                 const calendarId = calendars[calendarIndex].id;
                 try {
+                    plugin.cache.clearGhostEvent(); // Clear ghost before saving
                     await plugin.cache.addEvent(calendarId, data);
                 } catch (e) {
                     if (e instanceof Error) {
@@ -37,8 +39,21 @@ export function launchCreateModal(
                 }
                 closeModal();
             },
+            onGhostEventChange: (event, calendarId) => {
+                console.log('Modal onGhostEventChange callback called:', { event: !!event, calendarId });
+                plugin.cache.setGhostEvent(event, calendarId);
+            },
         })
-    ).open();
+    );
+    
+    // Clear ghost event when modal is closed
+    const originalOnClose = modal.onClose;
+    modal.onClose = function() {
+        plugin.cache.clearGhostEvent();
+        originalOnClose.call(this);
+    };
+    
+    modal.open();
 }
 
 export function launchEditModal(plugin: FullCalendarPlugin, eventId: string) {
@@ -60,13 +75,14 @@ export function launchEditModal(plugin: FullCalendarPlugin, eventId: string) {
 
     const calIdx = calendars.findIndex(({ id }) => id === calId);
 
-    new ReactModal(plugin.app, async (closeModal) =>
+    const modal = new ReactModal(plugin.app, async (closeModal) =>
         React.createElement(EditEvent, {
             initialEvent: eventToEdit,
             calendars,
             defaultCalendarIndex: calIdx,
             submit: async (data, calendarIndex) => {
                 try {
+                    plugin.cache.clearGhostEvent(); // Clear ghost before saving
                     if (calendarIndex !== calIdx) {
                         await plugin.cache.moveEventToCalendar(
                             eventId,
@@ -87,6 +103,7 @@ export function launchEditModal(plugin: FullCalendarPlugin, eventId: string) {
             },
             deleteEvent: async () => {
                 try {
+                    plugin.cache.clearGhostEvent(); // Clear ghost before deleting
                     await plugin.cache.deleteEvent(eventId);
                     closeModal();
                 } catch (e) {
@@ -96,6 +113,19 @@ export function launchEditModal(plugin: FullCalendarPlugin, eventId: string) {
                     }
                 }
             },
+            onGhostEventChange: (event, calendarId) => {
+                console.log('Modal onGhostEventChange callback called:', { event: !!event, calendarId });
+                plugin.cache.setGhostEvent(event, calendarId);
+            },
         })
-    ).open();
+    );
+    
+    // Clear ghost event when modal is closed
+    const originalOnClose = modal.onClose;
+    modal.onClose = function() {
+        plugin.cache.clearGhostEvent();
+        originalOnClose.call(this);
+    };
+    
+    modal.open();
 }

@@ -110,11 +110,6 @@ const getInlineEventFromLine = (
 ): OFCEvent | null => {
     const attrs = getInlineAttributes(text);
 
-    // Shortcut validation if there are no inline attributes.
-    if (Object.keys(attrs).length === 0) {
-        return null;
-    }
-
     return validateEvent({
         title: text.replace(listRegex, "").replace(fieldRegex, "").trim(),
         completed: checkboxTodo(text),
@@ -280,9 +275,22 @@ export default class DailyNoteCalendar extends EditableCalendar {
         ]);
     }
 
-    async getEvents(): Promise<EventResponse[]> {
+    async getEvents(dateRange?: { start: Date; end: Date }): Promise<EventResponse[]> {
         const notes = getAllDailyNotes();
-        const files = Object.values(notes) as TFile[];
+        let files = Object.values(notes) as TFile[];
+        
+        // If date range is provided, filter daily notes by date
+        if (dateRange) {
+            const start = moment(dateRange.start).subtract(1, 'month');
+            const end = moment(dateRange.end).add(1, 'month');
+            
+            files = files.filter(file => {
+                const date = getDateFromFile(file as any, "day");
+                if (!date) return false;
+                return date.isBetween(start, end, 'day', '[]');
+            });
+        }
+        
         return (
             await Promise.all(files.map((f) => this.getEventsInFile(f)))
         ).flat();

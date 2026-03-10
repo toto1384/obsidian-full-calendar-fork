@@ -1,5 +1,12 @@
 import { MarkdownView, TFile, Vault, Workspace } from "obsidian";
+import moment from "moment";
 import EventCache from "src/core/EventCache";
+import {
+    getAllDailyNotes,
+    getDailyNote,
+    createDailyNote,
+    getDailyNoteSettings
+} from "obsidian-daily-notes-interface";
 
 /**
  * Open a file in the editor to a given event.
@@ -35,4 +42,32 @@ export async function openFileForEvent(
     if (lineNumber && leaf.view instanceof MarkdownView) {
         leaf.view.editor.setCursor({ line: lineNumber, ch: 0 });
     }
+}
+
+/**
+ * Open or create a daily note for the given date
+ * @param date The date to open the daily note for
+ * @param workspace App workspace
+ * @returns
+ */
+export async function openDailyNote(
+    date: Date,
+    { workspace }: { workspace: Workspace }
+) {
+    const m = moment(date);
+    const allDailyNotes = getAllDailyNotes();
+    let file = getDailyNote(m, allDailyNotes) as TFile;
+
+    if (!file) {
+        file = (await createDailyNote(m)) as TFile;
+    }
+
+    let leaf = workspace.getMostRecentLeaf();
+    if (!leaf) {
+        return;
+    }
+    if (leaf.getViewState().pinned) {
+        leaf = workspace.getLeaf("tab");
+    }
+    await leaf.openFile(file);
 }

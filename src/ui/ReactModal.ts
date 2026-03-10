@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
-import { App, Modal } from "obsidian";
+import { App, DropdownComponent, Modal } from "obsidian";
 
 type RenderCallback = (
     close: () => void

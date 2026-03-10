@@ -23,6 +23,7 @@ export abstract class Calendar {
 
     /**
      * Return events along with their associated source files, if they exist.
+     * Optional dateRange parameter for performance optimization.
      */
-    abstract getEvents(): Promise<EventResponse[]>;
+    abstract getEvents(dateRange?: { start: Date; end: Date }): Promise<EventResponse[]>;
 }

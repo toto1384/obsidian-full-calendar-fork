@@ -63,6 +63,27 @@ export const CommonSchema = z.object({
     id: z.string().optional(),
 });
 
+
+// export const EventSchema = z.object({
+//     type: z.literal("single"),
+//     date: ParsedDate,
+//     endDate: ParsedDate.nullable().default(null),
+//     completed: ParsedDate.or(z.literal(false))
+//         .or(z.literal(null))
+//         .optional(),
+// }).or(z.object({
+//     type: z.literal("recurring"),
+//     daysOfWeek: z.array(z.enum(["U", "M", "T", "W", "R", "F", "S"])),
+//     startRecur: ParsedDate.optional(),
+//     endRecur: ParsedDate.optional(),
+// })).or(z.object({
+//     type: z.literal("rrule"),
+//     startDate: ParsedDate,
+//     rrule: z.string(),
+//     skipDates: z.array(ParsedDate).optional(),
+// }))
+
+
 export const EventSchema = z.discriminatedUnion("type", [
     z.object({
         type: z.literal("single"),
@@ -82,11 +103,17 @@ export const EventSchema = z.discriminatedUnion("type", [
         type: z.literal("rrule"),
         startDate: ParsedDate,
         rrule: z.string(),
-        skipDates: z.array(ParsedDate),
+        skipDates: z.array(ParsedDate).optional(),
+        // Original timezone for proper DST handling in recurring events
+        originalTz: z.string().optional(),
+        // Original wall-clock time (before timezone conversion) for DST-aware expansion
+        originalStartTime: z.string().optional(),
     }),
 ]);
 
 type EventType = z.infer<typeof EventSchema>;
+
+// const event: EventType ={ type:'rrule',rrule:} 
 type TimeType = z.infer<typeof TimeSchema>;
 type CommonType = z.infer<typeof CommonSchema>;
 
@@ -96,7 +123,17 @@ export function parseEvent(obj: unknown): OFCEvent {
     if (typeof obj !== "object") {
         throw new Error("value for parsing was not an object.");
     }
-    const objectWithDefaults = { type: "single", allDay: false, ...obj };
+
+    // If no time properties are specified, default to all-day
+    const hasTimeProps = obj && typeof obj === "object" &&
+        ("allDay" in obj || "startTime" in obj || "endTime" in obj);
+
+    const objectWithDefaults = {
+        type: "single",
+        allDay: hasTimeProps ? false : true,
+        ...obj
+    };
+
     return {
         ...CommonSchema.parse(objectWithDefaults),
         ...TimeSchema.parse(objectWithDefaults),
@@ -108,12 +145,8 @@ export function validateEvent(obj: unknown): OFCEvent | null {
     try {
         return parseEvent(obj);
     } catch (e) {
-        if (e instanceof ZodError) {
-            console.debug("Parsing failed with errors", {
-                obj,
-                message: e.message,
-            });
-        }
+        console.log(e)
+        console.debug("Parsing failed with errors", { obj, message: e, });
         return null;
     }
 }
