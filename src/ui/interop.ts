@@ -8,6 +8,25 @@ import { OFCEvent } from "../types";
  * Functions for converting between the types used by the FullCalendar view plugin and types used internally by Obsidian Full Calendar.
  */
 
+/**
+ * Calculate text color (black or white) based on background color brightness.
+ */
+function getTextColorForBackground(hexColor: string): string {
+	const m = hexColor
+		.slice(1)
+		.match(hexColor.length == 7 ? /(\S{2})/g : /(\S{1})/g);
+	if (m) {
+		const r = parseInt(m[0], 16);
+		const g = parseInt(m[1], 16);
+		const b = parseInt(m[2], 16);
+		const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+		if (brightness > 150) {
+			return "black";
+		}
+	}
+	return getComputedStyle(document.body).getPropertyValue("--text-on-accent");
+}
+
 const parseTime = (time: string): Duration | null => {
 	let parsed = DateTime.fromFormat(time, "h:mm a");
 	if (parsed.invalidReason) {
@@ -238,6 +257,13 @@ export function toEventInput(
 		}
 	}
 
+	// Apply per-event color if specified (overrides calendar color)
+	if (frontmatter.color) {
+		event.backgroundColor = frontmatter.color;
+		event.borderColor = frontmatter.color;
+		event.textColor = getTextColorForBackground(frontmatter.color);
+	}
+
 	return event;
 }
 
@@ -247,6 +273,7 @@ export function fromEventApi(event: EventApi): OFCEvent {
 	const endDate = getDate(event.end as Date);
 	return {
 		title: event.title,
+		...(event.backgroundColor ? { color: event.backgroundColor } : {}),
 		...(event.allDay
 			? { allDay: true }
 			: {

@@ -157,6 +157,8 @@ export const EditEvent = ({
 		initialEvent.completed !== null
 	);
 
+	const [eventColor, setEventColor] = useState(initialEvent?.color || "");
+
 	const titleRef = useRef<HTMLInputElement>(null);
 	useEffect(() => {
 		if (titleRef.current) {
@@ -290,6 +292,7 @@ export const EditEvent = ({
 
 		const ghostEvent: OFCEvent = {
 			title: title || "Untitled Event",
+			...(eventColor ? { color: eventColor } : {}),
 			...(allDay
 				? { allDay: true }
 				: { allDay: false, startTime: startTime || "", endTime }),
@@ -319,7 +322,7 @@ export const EditEvent = ({
 		const calendarId = calendars[calendarIndex].id;
 		console.log('Creating ghost event:', { ghostEvent, calendarId, calendarIndex });
 		onGhostEventChange(ghostEvent, calendarId);
-	}, [allDay, startTime, endTime, isRecurring, daysOfWeek, date, endRecur, endDate, isTask, complete, calendarIndex, calendars, onGhostEventChange]);
+	}, [allDay, startTime, endTime, isRecurring, daysOfWeek, date, endRecur, endDate, isTask, complete, calendarIndex, calendars, onGhostEventChange, eventColor]);
 
 	// Debounced update for title changes
 	useEffect(() => {
@@ -331,6 +334,7 @@ export const EditEvent = ({
 
 			const ghostEvent: OFCEvent = {
 				title: title || "Untitled Event",
+				...(eventColor ? { color: eventColor } : {}),
 				...(allDay
 					? { allDay: true }
 					: { allDay: false, startTime: startTime || "", endTime }),
@@ -372,7 +376,7 @@ export const EditEvent = ({
 	useEffect(() => {
 		console.log('Non-title field changed, immediate ghost event update');
 		updateGhostEvent();
-	}, [allDay, startTime, endTime, isRecurring, daysOfWeek, date, endRecur, endDate, isTask, complete, calendarIndex, calendars]);
+	}, [allDay, startTime, endTime, isRecurring, daysOfWeek, date, endRecur, endDate, isTask, complete, calendarIndex, calendars, eventColor]);
 
 	// Clean up ghost event when component unmounts
 	useEffect(() => {
@@ -388,6 +392,7 @@ export const EditEvent = ({
 		await submit(
 			{
 				...{ title },
+				color: eventColor || undefined,
 				...(allDay
 					? { allDay: true }
 					: { allDay: false, startTime: startTime || "", endTime }),
@@ -840,6 +845,40 @@ export const EditEvent = ({
 						</>
 					)
 				}
+
+				<p style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+					<label htmlFor="eventColor">Event Color </label>
+					<input
+						type="color"
+						id="eventColor"
+						value={eventColor || "#3788d8"}
+						onChange={(e) => setEventColor(e.target.value)}
+						style={{
+							width: "40px",
+							height: "24px",
+							padding: "0",
+							border: "1px solid var(--background-modifier-border)",
+							borderRadius: "4px",
+							cursor: "pointer"
+						}}
+					/>
+					{eventColor && (
+						<button
+							type="button"
+							onClick={() => setEventColor("")}
+							style={{
+								fontSize: "10px",
+								padding: "2px 6px",
+								backgroundColor: "var(--interactive-normal)",
+								border: "1px solid var(--background-modifier-border)",
+								borderRadius: "3px",
+								cursor: "pointer"
+							}}
+						>
+							Clear
+						</button>
+					)}
+				</p>
 
 				<p
 					style={{

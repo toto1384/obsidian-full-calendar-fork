@@ -27,6 +27,8 @@ export interface FullCalendarSettings {
     };
     timeFormat24h: boolean;
     clickToCreateEventFromMonthView: boolean;
+    showTasksCalendar: boolean;
+    tasksCalendarColor: string;
 
     zoom: number;
 }
@@ -42,6 +44,8 @@ export const DEFAULT_SETTINGS: FullCalendarSettings = {
     timeFormat24h: false,
     zoom: 12,
     clickToCreateEventFromMonthView: true,
+    showTasksCalendar: false,
+    tasksCalendarColor: "#7c3aed",
 };
 
 const WEEKDAYS = [
@@ -248,6 +252,42 @@ export class FullCalendarSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 });
             });
+
+        containerEl.createEl("h2", { text: "Task Integration" });
+
+        const tasksPlugin = (this.app as any).plugins?.plugins?.[
+            "obsidian-tasks-plugin"
+        ];
+        const tasksInstalled = !!tasksPlugin;
+
+        new Setting(containerEl)
+            .setName("Show tasks on calendar")
+            .setDesc(
+                tasksInstalled
+                    ? "Display tasks with due dates as all-day events"
+                    : "⚠️ Requires obsidian-tasks plugin to be installed"
+            )
+            .addToggle((toggle) => {
+                toggle.setValue(this.plugin.settings.showTasksCalendar);
+                toggle.setDisabled(!tasksInstalled);
+                toggle.onChange(async (val) => {
+                    this.plugin.settings.showTasksCalendar = val;
+                    await this.plugin.saveSettings();
+                    this.display();
+                });
+            });
+
+        if (this.plugin.settings.showTasksCalendar && tasksInstalled) {
+            new Setting(containerEl)
+                .setName("Tasks calendar color")
+                .addColorPicker((picker) => {
+                    picker.setValue(this.plugin.settings.tasksCalendarColor);
+                    picker.onChange(async (val) => {
+                        this.plugin.settings.tasksCalendarColor = val;
+                        await this.plugin.saveSettings();
+                    });
+                });
+        }
 
         containerEl.createEl("h2", { text: "Manage Calendars" });
         addCalendarButton(

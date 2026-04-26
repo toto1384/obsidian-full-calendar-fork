@@ -5,6 +5,7 @@ import FullCalendarPlugin from "src/main";
 import { OFCEvent } from "src/types";
 import { openFileForEvent } from "./actions";
 import { EditEvent } from "./components/EditEvent";
+import { EventInfo } from "./components/EventInfo";
 import ReactModal from "./ReactModal";
 
 export function launchCreateModal(
@@ -119,13 +120,31 @@ export function launchEditModal(plugin: FullCalendarPlugin, eventId: string) {
             },
         })
     );
-    
+
     // Clear ghost event when modal is closed
     const originalOnClose = modal.onClose;
     modal.onClose = function() {
         plugin.cache.clearGhostEvent();
         originalOnClose.call(this);
     };
-    
+
+    modal.open();
+}
+
+export function launchEventInfoModal(plugin: FullCalendarPlugin, eventId: string) {
+    const event = plugin.cache.getEventById(eventId);
+    if (!event) {
+        throw new Error("Event not found.");
+    }
+
+    // Get calendar name for display
+    const calendarName = plugin.cache.getCalendarNameForEvent(eventId);
+
+    const modal = new ReactModal(plugin.app, async () =>
+        React.createElement(EventInfo, {
+            event,
+            calendarName,
+        })
+    );
     modal.open();
 }

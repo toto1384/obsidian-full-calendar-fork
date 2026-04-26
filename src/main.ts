@@ -21,6 +21,7 @@ import FullNoteCalendar from "./calendars/FullNoteCalendar";
 import DailyNoteCalendar from "./calendars/DailyNoteCalendar";
 import ICSCalendar from "./calendars/ICSCalendar";
 import CalDAVCalendar from "./calendars/CalDAVCalendar";
+import TasksCalendar from "./calendars/TasksCalendar";
 
 export default class FullCalendarPlugin extends Plugin {
 	settings: FullCalendarSettings = DEFAULT_SETTINGS;
@@ -56,6 +57,10 @@ export default class FullCalendarPlugin extends Plugin {
 					info.url,
 					info.homeUrl
 				)
+				: null,
+		tasks: (info) =>
+			info.type === "tasks"
+				? new TasksCalendar(this.app, info.color)
 				: null,
 		FOR_TEST_ONLY: () => null,
 	});
@@ -125,7 +130,15 @@ export default class FullCalendarPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		this.cache.reset(this.settings.calendarSources);
+		// Build sources with tasks if enabled
+		let sources = [...this.settings.calendarSources];
+		if (this.settings.showTasksCalendar) {
+			sources.push({
+				type: "tasks" as const,
+				color: this.settings.tasksCalendarColor,
+			});
+		}
+		this.cache.reset(sources);
 
 		this.registerEvent(
 			this.app.metadataCache.on("changed", (file) => {
@@ -251,7 +264,17 @@ export default class FullCalendarPlugin extends Plugin {
 	async saveSettings() {
 		new Notice("Resetting the event cache with new settings...");
 		await this.saveData(this.settings);
-		this.cache.reset(this.settings.calendarSources);
+
+		// Build calendar sources with optional tasks calendar
+		let sources = [...this.settings.calendarSources];
+		if (this.settings.showTasksCalendar) {
+			sources.push({
+				type: "tasks" as const,
+				color: this.settings.tasksCalendarColor,
+			});
+		}
+
+		this.cache.reset(sources);
 		await this.cache.populate();
 		this.cache.resync();
 	}

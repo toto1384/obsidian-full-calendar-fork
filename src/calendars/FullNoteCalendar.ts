@@ -104,7 +104,12 @@ function modifyFrontmatterString(
     const frontmatter = extractFrontmatter(page)?.split("\n");
     let newFrontmatter: string[] = [];
 
-    let obj = stringifyYaml({ ...parseYaml(extractFrontmatter(page)!) ?? {}, ...modifications ?? {} })
+    // Merge existing frontmatter with modifications, then filter out undefined values
+    const merged = { ...parseYaml(extractFrontmatter(page)!) ?? {}, ...modifications ?? {} };
+    const filtered = Object.fromEntries(
+        Object.entries(merged).filter(([_, v]) => v !== undefined)
+    );
+    let obj = stringifyYaml(filtered)
 
     if (!frontmatter) {
         newFrontmatter = Object.entries(modifications)

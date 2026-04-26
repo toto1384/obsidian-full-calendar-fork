@@ -187,11 +187,12 @@ export default class EventCache {
         // Clear the store completely
         this.store.clear();
 
-        // Force revalidation of remote calendars
-        this.revalidateRemoteCalendars(true);
-
-        // Repopulate all events
+        // Repopulate local calendars only (non-remote)
         for (const calendar of this.calendars.values()) {
+            // Skip remote calendars - they will be handled by revalidateRemoteCalendars
+            if (calendar instanceof RemoteCalendar) {
+                continue;
+            }
             const results = await calendar.getEvents();
             results.forEach(([event, location]) =>
                 this.store.add({
@@ -203,8 +204,11 @@ export default class EventCache {
             );
         }
 
-        // Notify views of the complete refresh
+        // Notify views of the complete refresh for local calendars
         this.resync();
+
+        // Force revalidation of remote calendars (will update view via updateCalendar callback)
+        this.revalidateRemoteCalendars(true);
 
         console.log("All events reloaded successfully");
     }
@@ -325,6 +329,20 @@ export default class EventCache {
             );
         }
         return { calendar, location };
+    }
+
+    /**
+     * Get calendar name for a given event (works for any event, including read-only).
+     * @param eventId ID of event in question.
+     * @returns Calendar name or undefined if not found.
+     */
+    getCalendarNameForEvent(eventId: string): string | undefined {
+        const details = this.store.getEventDetails(eventId);
+        if (!details) {
+            return undefined;
+        }
+        const calendar = this.calendars.get(details.calendarId);
+        return calendar?.name;
     }
 
     ///
