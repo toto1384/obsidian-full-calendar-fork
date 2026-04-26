@@ -324,9 +324,6 @@ export function renderCalendar(
 		},
 
 		eventDidMount: ({ event, el, textColor }) => {
-			// Add data attribute for vimium mode matching
-			el.setAttribute("data-fc-event-id", event.id);
-
 			el.addEventListener("contextmenu", (e) => {
 				e.preventDefault();
 				if (!isMobile)

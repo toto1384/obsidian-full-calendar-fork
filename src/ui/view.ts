@@ -56,9 +56,6 @@ export class CalendarView extends ItemView {
 	fullCalendarView: Calendar | null = null;
 	callback: UpdateViewCallback | null = null;
 	
-	// Vimium mode state
-	vimiumMode: boolean = false;
-	vimiumOverlays: Map<string, { element: HTMLElement; eventId: string }> = new Map();
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -479,38 +476,7 @@ export class CalendarView extends ItemView {
 				return;
 			}
 
-			// Ctrl+/ - Toggle vimium mode
-			if (event.ctrlKey && event.key === '/') {
-				event.preventDefault();
-				console.log('Calendar: Toggling vimium mode');
-				this.toggleVimiumMode();
-				return;
-			}
 
-			// Handle vimium mode letter selections
-			if (this.vimiumMode && event.ctrlKey && event.key.length === 1) {
-				const letter = event.key.toLowerCase();
-				if (this.vimiumOverlays.has(letter)) {
-					event.preventDefault();
-					const overlay = this.vimiumOverlays.get(letter)!;
-					console.log('Calendar: Opening event via vimium mode:', overlay.eventId);
-					// Check if event is editable before opening
-					if (this.plugin.cache.isEventEditable(overlay.eventId)) {
-						launchEditModal(this.plugin, overlay.eventId);
-					} else {
-						launchEventInfoModal(this.plugin, overlay.eventId);
-					}
-					this.clearVimiumMode();
-					return;
-				}
-			}
-
-			// Escape key to exit vimium mode
-			if (this.vimiumMode && event.key === 'Escape') {
-				event.preventDefault();
-				this.clearVimiumMode();
-				return;
-			}
 		});
 
 		this.registerDomEvent(this.containerEl, "mouseenter", () => {
@@ -601,110 +567,6 @@ export class CalendarView extends ItemView {
 		}
 	}
 
-	toggleVimiumMode(): void {
-		if (this.vimiumMode) {
-			this.clearVimiumMode();
-		} else {
-			this.activateVimiumMode();
-		}
-	}
-
-	activateVimiumMode(): void {
-		console.log('Calendar: Activating vimium mode');
-		this.vimiumMode = true;
-		
-		if (!this.fullCalendarView) {
-			console.log('Calendar: No fullCalendarView available');
-			return;
-		}
-		
-		// Get only events visible in the current view
-		const currentView = this.fullCalendarView.view;
-		const viewStart = currentView.activeStart;
-		const viewEnd = currentView.activeEnd;
-		
-		// Filter events to only those visible in the current view period
-		const allEvents = this.fullCalendarView.getEvents();
-		const visibleEvents = allEvents.filter(event => {
-			if (!event.start) return false;
-			
-			// Check if event overlaps with the current view period
-			const eventEnd = event.end || event.start;
-			return (event.start < viewEnd) && (eventEnd > viewStart);
-		});
-		
-		console.log(`Calendar: Found ${allEvents.length} total events, ${visibleEvents.length} visible in current view`);
-		const letters = 'abcdefghijklmnopqrstuvwxyz';
-		
-		this.vimiumOverlays.clear();
-		
-		// Get all fc-event elements currently visible
-		const eventElements = Array.from(document.querySelectorAll('.fc-event')) as HTMLElement[];
-		console.log(`Calendar: Found ${eventElements.length} DOM event elements`);
-		
-		visibleEvents.forEach((event, index) => {
-			if (index >= letters.length) return; // Skip if we run out of letters
-			
-			const letter = letters[index];
-			console.log(`Calendar: Processing event ${index}: ${event.id} (${event.title}) -> ${letter}`);
-			
-			// Use the data attribute for reliable matching
-			const eventElement = document.querySelector(`[data-fc-event-id="${event.id}"]`) as HTMLElement;
-			
-			if (eventElement) {
-				console.log(`Calendar: Found element for event ${event.id}`);
-				
-				// Create overlay element
-				const overlay = document.createElement('div');
-				overlay.textContent = letter.toUpperCase();
-				overlay.style.cssText = `
-					position: absolute;
-					background: #ff6b35;
-					color: white;
-					font-weight: bold;
-					font-size: 12px;
-					padding: 2px 6px;
-					border-radius: 3px;
-					z-index: 1000;
-					pointer-events: none;
-					box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-					top: 2px;
-					left: 2px;
-				`;
-				
-				// Position relative to event
-				eventElement.style.position = 'relative';
-				eventElement.appendChild(overlay);
-				
-				this.vimiumOverlays.set(letter, {
-					element: overlay,
-					eventId: event.id
-				});
-				
-				// Remove the matched element from the array to avoid duplicate matches
-				const elementIndex = eventElements.indexOf(eventElement);
-				if (elementIndex > -1) {
-					eventElements.splice(elementIndex, 1);
-				}
-			} else {
-				console.log(`Calendar: Could not find element for event ${event.id} (${event.title})`);
-			}
-		});
-		
-		console.log(`Calendar: Vimium mode activated with ${this.vimiumOverlays.size} overlays`);
-	}
-
-	clearVimiumMode(): void {
-		console.log('Calendar: Clearing vimium mode');
-		this.vimiumMode = false;
-
-		// Remove all overlay elements
-		this.vimiumOverlays.forEach((overlay) => {
-			overlay.element.remove();
-		});
-
-		this.vimiumOverlays.clear();
-	}
 
 	async reloadAllEvents(): Promise<void> {
 		try {

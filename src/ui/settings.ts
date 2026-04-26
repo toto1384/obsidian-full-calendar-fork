@@ -264,8 +264,8 @@ export class FullCalendarSettingTab extends PluginSettingTab {
             .setName("Show tasks on calendar")
             .setDesc(
                 tasksInstalled
-                    ? "Display tasks with due dates as all-day events"
-                    : "⚠️ Requires obsidian-tasks plugin to be installed"
+                    ? "Display tasks with due dates as all-day events. ⚠️ Requires a forked version of the Tasks plugin that implements the internal API — the standard community version will not work."
+                    : "⚠️ Requires obsidian-tasks plugin to be installed. Note: a forked version of the Tasks plugin is required — the standard community version will not work."
             )
             .addToggle((toggle) => {
                 toggle.setValue(this.plugin.settings.showTasksCalendar);
