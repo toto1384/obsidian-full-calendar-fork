@@ -4,11 +4,7 @@ import { Calendar, EventSourceInput } from "@fullcalendar/core";
 import { renderCalendar } from "./calendar";
 import FullCalendarPlugin from "../main";
 import { FCError, PLUGIN_SLUG } from "../types";
-import {
-	dateEndpointsToFrontmatter,
-	fromEventApi,
-	toEventInput,
-} from "./interop";
+import { dateEndpointsToFrontmatter, fromEventApi } from "./interop";
 import { renderOnboarding } from "./onboard";
 import { openFileForEvent, openDailyNote } from "./actions";
 import { launchCreateModal, launchEditModal, launchEventInfoModal, deleteEventWithPrompt } from "./event_modal";
@@ -99,7 +95,7 @@ export class CalendarView extends ItemView {
 				try {
 					const dateRange = { start: fetchInfo.start, end: fetchInfo.end };
 					const filtered = cache.getEventsForCalendar(id, dateRange);
-					successCallback(filtered.flatMap(e => toEventInput(e.id, e.event) || []));
+					successCallback(filtered.flatMap(e => this.plugin.eventInput(e.id, e.event, id) || []));
 				} catch (e) {
 					failureCallback(e as Error);
 				}
@@ -107,6 +103,29 @@ export class CalendarView extends ItemView {
 			editable,
 			...getCalendarColors(color),
 		}));
+	}
+
+	colorModeButtonText() {
+		return this.plugin.settings.colorMode === "category"
+			? "Categories"
+			: "Calendars";
+	}
+
+	/**
+	 * Rebuild all event sources, e.g. after the color mode changes.
+	 */
+	redrawEvents() {
+		if (!this.fullCalendarView) {
+			return;
+		}
+		this.fullCalendarView.removeAllEventSources();
+		this.translateSources().forEach((source) =>
+			this.fullCalendarView?.addEventSource(source)
+		);
+		const button = this.containerEl.querySelector(".fc-colorMode-button");
+		if (button) {
+			button.textContent = this.colorModeButtonText();
+		}
 	}
 
 	private getDateRangeFromView(): { start: Date; end: Date } | undefined {
@@ -377,15 +396,26 @@ export class CalendarView extends ItemView {
 					click: async () => {
 						await this.reloadAllEvents();
 					}
+				},
+				colorMode: {
+					text: this.colorModeButtonText(),
+					hint: 'Color events by calendar or by category',
+					click: async () => {
+						await this.plugin.setColorMode(
+							this.plugin.settings.colorMode === "category"
+								? "calendar"
+								: "category"
+						);
+					}
 				}
 			},
 			headerToolbar: {
 				left: isNarrow ? "" : 'prev,next,today,addZoom,decreaseZoom,reload',
-				center: 'title',
+				center: isNarrow ? 'title' : 'colorMode title',
 				right: 'dayGridMonth,timeGridWeek,timeGrid3Days,timeGridDay'
 			},
 			footerToolbar: {
-				left: isNarrow ? 'prev,next,today,addZoom,decreaseZoom,reload' : ''
+				left: isNarrow ? 'prev,next,today,addZoom,decreaseZoom,reload colorMode' : ''
 			},
 			toggleTask: async (e, isDone) => {
 				const event = this.plugin.cache.getEventById(e.id);
@@ -530,7 +560,7 @@ export class CalendarView extends ItemView {
 					}
 				});
 				toAdd.forEach(({ id, event, calendarId }) => {
-					const eventInput = toEventInput(id, event);
+					const eventInput = this.plugin.eventInput(id, event, calendarId);
 					this.fullCalendarView?.addEvent(
 						eventInput!,
 						calendarId
@@ -544,7 +574,7 @@ export class CalendarView extends ItemView {
 				this.fullCalendarView?.addEventSource({
 					id,
 					events: events.flatMap(
-						({ id, event }) => toEventInput(id, event) || []
+						(e) => this.plugin.eventInput(e.id, e.event, id) || []
 					),
 					editable,
 					...getCalendarColors(color),

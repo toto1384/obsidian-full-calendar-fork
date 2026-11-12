@@ -16,7 +16,10 @@ const calendarOptionsSchema = z.discriminatedUnion("type", [
     z.object({ type: z.literal("tasks") }),
 ]);
 
-const colorValidator = z.object({ color: z.string() });
+const colorValidator = z.object({
+    color: z.string(),
+    defaultCategory: z.string().optional(),
+});
 
 export type TestSource = {
     type: "FOR_TEST_ONLY";

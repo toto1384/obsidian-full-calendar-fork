@@ -4,6 +4,7 @@ import { OFCEvent } from "src/types";
 interface EventInfoProps {
 	event: OFCEvent;
 	calendarName?: string;
+	categoryName?: string;
 	onOpenSource?: () => void;
 }
 
@@ -57,7 +58,7 @@ function Linkified({ text }: { text: string }) {
 	);
 }
 
-export function EventInfo({ event, calendarName, onOpenSource }: EventInfoProps) {
+export function EventInfo({ event, calendarName, categoryName, onOpenSource }: EventInfoProps) {
 	return (
 		<div className="ofc-event-info">
 			<h2 className="ofc-event-info-title">{event.title}</h2>
@@ -66,6 +67,13 @@ export function EventInfo({ event, calendarName, onOpenSource }: EventInfoProps)
 				<div className="ofc-event-info-row">
 					<span className="ofc-event-info-label">Calendar:</span>
 					<span className="ofc-event-info-value">{calendarName}</span>
+				</div>
+			)}
+
+			{categoryName && (
+				<div className="ofc-event-info-row">
+					<span className="ofc-event-info-label">Category:</span>
+					<span className="ofc-event-info-value">{categoryName}</span>
 				</div>
 			)}
 

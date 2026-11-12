@@ -1,4 +1,4 @@
-import { MarkdownView, Notice, Plugin, TFile } from "obsidian";
+import { MarkdownView, Notice, Plugin, TFile, normalizePath } from "obsidian";
 import {
 	CalendarView,
 	FULL_CALENDAR_SIDEBAR_VIEW_TYPE,
@@ -6,14 +6,14 @@ import {
 	getCalendarColors,
 } from "./ui/view";
 import { renderCalendar } from "./ui/calendar";
-import { toEventInput } from "./ui/interop";
+import { ColorMode, toEventInput } from "./ui/interop";
 import {
 	DEFAULT_SETTINGS,
 	FullCalendarSettings,
 	FullCalendarSettingTab,
 } from "./ui/settings";
 import { EventSourceInput } from "@fullcalendar/core";
-import { PLUGIN_SLUG } from "./types";
+import { OFCEvent, PLUGIN_SLUG } from "./types";
 import EventCache from "./core/EventCache";
 import { ObsidianIO } from "./ObsidianAdapter";
 import { launchCreateModal } from "./ui/event_modal";
@@ -70,7 +70,7 @@ export default class FullCalendarPlugin extends Plugin {
 		return cache.getAllEvents(dateRange).map(({ events, editable, color, id }): EventSourceInput => ({
 			id,
 			events: events.flatMap(
-				(e) => toEventInput(e.id, e.event) || []
+				(e) => this.eventInput(e.id, e.event, id) || []
 			),
 			editable,
 			...getCalendarColors(color),
@@ -103,6 +103,98 @@ export default class FullCalendarPlugin extends Plugin {
 		return cal;
 	};
 	processFrontmatter = toEventInput;
+
+	/**
+	 * The event's own category, else the default category of its calendar.
+	 */
+	categoryFor(event: OFCEvent, calendarId: string): string | undefined {
+		return (
+			event.category ||
+			this.cache.calendars.get(calendarId)?.defaultCategory
+		);
+	}
+
+	/**
+	 * Convert an event for FullCalendar, colored by the current color mode.
+	 */
+	eventInput(id: string, event: OFCEvent, calendarId: string) {
+		const colorMode = this.settings.colorMode;
+		if (colorMode !== "category") {
+			return toEventInput(id, event);
+		}
+		const name = this.categoryFor(event, calendarId);
+		const categoryColor = this.settings.categories.find(
+			(c) => c.name === name
+		)?.color;
+		return toEventInput(id, event, { colorMode, categoryColor });
+	}
+
+	async setColorMode(colorMode: ColorMode) {
+		this.settings.colorMode = colorMode;
+		await this.saveData(this.settings);
+		this.redrawViews();
+	}
+
+	/**
+	 * Save category settings that only change colors. This does not reset
+	 * the event cache.
+	 */
+	async saveCategories() {
+		await this.saveData(this.settings);
+		this.redrawViews();
+	}
+
+	redrawViews() {
+		[FULL_CALENDAR_VIEW_TYPE, FULL_CALENDAR_SIDEBAR_VIEW_TYPE].forEach(
+			(type) =>
+				this.app.workspace
+					.getLeavesOfType(type)
+					.forEach((l) => (l.view as CalendarView).redrawEvents())
+		);
+	}
+
+	/**
+	 * Rename a category in settings and in the frontmatter of local events.
+	 * Returns the number of event notes changed.
+	 */
+	async renameCategory(oldName: string, newName: string): Promise<number> {
+		const category = this.settings.categories.find(
+			(c) => c.name === oldName
+		);
+		if (category) {
+			category.name = newName;
+		}
+		this.settings.calendarSources.forEach((s) => {
+			if (s.defaultCategory === oldName) {
+				s.defaultCategory = newName;
+			}
+		});
+
+		const directories = this.settings.calendarSources.flatMap((s) =>
+			s.type === "local" ? [normalizePath(s.directory) + "/"] : []
+		);
+		const files = this.app.vault
+			.getMarkdownFiles()
+			.filter(
+				(f) =>
+					directories.some((d) => f.path.startsWith(d)) &&
+					this.app.metadataCache.getFileCache(f)?.frontmatter
+						?.category === oldName
+			);
+		for (const file of files) {
+			// processFrontMatter exists at runtime but not in this
+			// version of the Obsidian typings.
+			await (this.app.fileManager as any).processFrontMatter(
+				file,
+				(fm: Record<string, unknown>) => {
+					fm.category = newName;
+				}
+			);
+		}
+
+		await this.saveSettings();
+		return files.length;
+	}
 	getCalendarColors = getCalendarColors;
 
 	async activateView() {
@@ -200,6 +292,18 @@ export default class FullCalendarPlugin extends Plugin {
 					FULL_CALENDAR_SIDEBAR_VIEW_TYPE
 				);
 				new Notice("Full Calendar has been reset.");
+			},
+		});
+
+		this.addCommand({
+			id: "full-calendar-toggle-color-mode",
+			name: "Toggle calendar/category colors",
+			callback: async () => {
+				await this.setColorMode(
+					this.settings.colorMode === "category"
+						? "calendar"
+						: "category"
+				);
 			},
 		});
 

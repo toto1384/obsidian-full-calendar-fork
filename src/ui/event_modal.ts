@@ -120,6 +120,7 @@ export function launchCreateModal(
                 id,
                 type: cal.type,
                 name: cal.name,
+                defaultCategory: cal.defaultCategory,
             };
         });
 
@@ -127,6 +128,7 @@ export function launchCreateModal(
         React.createElement(EditEvent, {
             initialEvent: partialEvent,
             calendars,
+            categories: plugin.settings.categories.map((c) => c.name),
             defaultCalendarIndex: 0,
             submit: async (data, calendarIndex) => {
                 const calendarId = calendars[calendarIndex].id;
@@ -176,6 +178,7 @@ export function launchEditModal(
                 id,
                 type: cal.type,
                 name: cal.name,
+                defaultCategory: cal.defaultCategory,
             };
         });
 
@@ -185,6 +188,7 @@ export function launchEditModal(
         React.createElement(EditEvent, {
             initialEvent: eventToEdit,
             calendars,
+            categories: plugin.settings.categories.map((c) => c.name),
             defaultCalendarIndex: calIdx,
             submit: async (data, calendarIndex) => {
                 try {
@@ -244,6 +248,10 @@ export function launchEventInfoModal(plugin: FullCalendarPlugin, eventId: string
     }
 
     const calendarName = plugin.cache.getCalendarNameForEvent(eventId);
+    const calendarId = plugin.cache.getCalendarIdForEvent(eventId);
+    const categoryName = calendarId
+        ? plugin.categoryFor(event, calendarId)
+        : event.category;
 
     let onOpenSource: (() => void) | undefined;
     if (event.taskPath) {
@@ -272,6 +280,7 @@ export function launchEventInfoModal(plugin: FullCalendarPlugin, eventId: string
         React.createElement(EventInfo, {
             event,
             calendarName,
+            categoryName,
             onOpenSource,
         })
     );

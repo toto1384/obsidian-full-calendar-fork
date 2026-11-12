@@ -81,7 +81,9 @@ interface EditEventProps {
 		id: string;
 		name: string;
 		type: CalendarInfo["type"];
+		defaultCategory?: string;
 	}[];
+	readonly categories?: string[];
 	defaultCalendarIndex: number;
 	initialEvent?: Partial<OFCEvent>;
 	open?: () => Promise<void>;
@@ -95,6 +97,7 @@ export const EditEvent = ({
 	open,
 	deleteEvent,
 	calendars,
+	categories = [],
 	defaultCalendarIndex,
 	onGhostEventChange,
 }: EditEventProps) => {
@@ -158,6 +161,13 @@ export const EditEvent = ({
 	);
 
 	const [eventColor, setEventColor] = useState(initialEvent?.color || "");
+
+	// Empty means the event uses its calendar's default category.
+	const [category, setCategory] = useState(initialEvent?.category || "");
+	const categoryOptions =
+		category && !categories.includes(category)
+			? [...categories, category]
+			: categories;
 
 	const titleRef = useRef<HTMLInputElement>(null);
 	useEffect(() => {
@@ -293,6 +303,7 @@ export const EditEvent = ({
 		const ghostEvent: OFCEvent = {
 			title: title || "Untitled Event",
 			...(eventColor ? { color: eventColor } : {}),
+			...(category ? { category } : {}),
 			...(allDay
 				? { allDay: true }
 				: { allDay: false, startTime: startTime || "", endTime }),
@@ -322,7 +333,7 @@ export const EditEvent = ({
 		const calendarId = calendars[calendarIndex].id;
 		console.log('Creating ghost event:', { ghostEvent, calendarId, calendarIndex });
 		onGhostEventChange(ghostEvent, calendarId);
-	}, [allDay, startTime, endTime, isRecurring, daysOfWeek, date, endRecur, endDate, isTask, complete, calendarIndex, calendars, onGhostEventChange, eventColor]);
+	}, [allDay, startTime, endTime, isRecurring, daysOfWeek, date, endRecur, endDate, isTask, complete, calendarIndex, calendars, onGhostEventChange, eventColor, category]);
 
 	// Debounced update for title changes
 	useEffect(() => {
@@ -335,6 +346,7 @@ export const EditEvent = ({
 			const ghostEvent: OFCEvent = {
 				title: title || "Untitled Event",
 				...(eventColor ? { color: eventColor } : {}),
+				...(category ? { category } : {}),
 				...(allDay
 					? { allDay: true }
 					: { allDay: false, startTime: startTime || "", endTime }),
@@ -376,7 +388,7 @@ export const EditEvent = ({
 	useEffect(() => {
 		console.log('Non-title field changed, immediate ghost event update');
 		updateGhostEvent();
-	}, [allDay, startTime, endTime, isRecurring, daysOfWeek, date, endRecur, endDate, isTask, complete, calendarIndex, calendars, eventColor]);
+	}, [allDay, startTime, endTime, isRecurring, daysOfWeek, date, endRecur, endDate, isTask, complete, calendarIndex, calendars, eventColor, category]);
 
 	// Clean up ghost event when component unmounts
 	useEffect(() => {
@@ -393,6 +405,7 @@ export const EditEvent = ({
 			{
 				...{ title },
 				color: eventColor || undefined,
+				category: category || undefined,
 				...(allDay
 					? { allDay: true }
 					: { allDay: false, startTime: startTime || "", endTime }),
@@ -845,6 +858,28 @@ export const EditEvent = ({
 						</>
 					)
 				}
+
+				{categoryOptions.length > 0 && (
+					<p style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+						<label htmlFor="eventCategory">Category </label>
+						<select
+							id="eventCategory"
+							className="dropdown"
+							value={category}
+							onChange={(e) => setCategory(e.target.value)}
+						>
+							<option value="">
+								Calendar default (
+								{calendars[calendarIndex]?.defaultCategory || "none"})
+							</option>
+							{categoryOptions.map((c) => (
+								<option key={c} value={c}>
+									{c}
+								</option>
+							))}
+						</select>
+					</p>
+				)}
 
 				<p style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
 					<label htmlFor="eventColor">Event Color </label>

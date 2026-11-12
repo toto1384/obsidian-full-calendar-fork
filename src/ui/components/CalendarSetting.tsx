@@ -114,13 +114,17 @@ function Username<T extends Partial<CalendarInfo>>({ source }: BasicProps<T>) {
 
 interface CalendarSettingsProps {
     setting: Partial<CalendarInfo>;
+    categories: string[];
     onColorChange: (s: string) => void;
+    onDefaultCategoryChange: (category: string | undefined) => void;
     deleteCalendar: () => void;
 }
 
 export const CalendarSettingRow = ({
     setting,
+    categories,
     onColorChange,
+    onDefaultCategoryChange,
     deleteCalendar,
 }: CalendarSettingsProps) => {
     const isCalDAV = setting.type === "caldav";
@@ -142,6 +146,22 @@ export const CalendarSettingRow = ({
             )}
             {isCalDAV && <NameSetting source={setting} />}
             {isCalDAV && <Username source={setting} />}
+            <select
+                className="dropdown"
+                title="Default category"
+                style={{ maxWidth: "30%", marginRight: 4 }}
+                value={setting.defaultCategory ?? ""}
+                onChange={(e) =>
+                    onDefaultCategoryChange(e.target.value || undefined)
+                }
+            >
+                <option value="">No category</option>
+                {categories.map((c) => (
+                    <option key={c} value={c}>
+                        {c}
+                    </option>
+                ))}
+            </select>
             <input
                 style={{ maxWidth: "25%", minWidth: "3rem" }}
                 type="color"
@@ -154,6 +174,7 @@ export const CalendarSettingRow = ({
 
 interface CalendarSettingProps {
     sources: CalendarInfo[];
+    categories: string[];
     submit: (payload: CalendarInfo[]) => void;
 }
 type CalendarSettingState = {
@@ -183,6 +204,17 @@ export class CalendarSettings extends React.Component<
                     <CalendarSettingRow
                         key={idx}
                         setting={s}
+                        categories={this.props.categories}
+                        onDefaultCategoryChange={(defaultCategory) =>
+                            this.setState((state) => ({
+                                sources: [
+                                    ...state.sources.slice(0, idx),
+                                    { ...state.sources[idx], defaultCategory },
+                                    ...state.sources.slice(idx + 1),
+                                ],
+                                dirty: true,
+                            }))
+                        }
                         onColorChange={(color) =>
                             this.setState((state, props) => ({
                                 sources: [

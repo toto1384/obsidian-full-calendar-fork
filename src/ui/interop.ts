@@ -121,9 +121,17 @@ export function dateEndpointsToFrontmatter(
 	};
 }
 
+export type ColorMode = "calendar" | "category";
+
+export type EventColorOptions = {
+	colorMode: ColorMode;
+	categoryColor?: string;
+};
+
 export function toEventInput(
 	id: string,
 	frontmatter: OFCEvent,
+	colors?: EventColorOptions,
 ): EventInput | null {
 	let event: EventInput = {
 		id,
@@ -274,11 +282,17 @@ export function toEventInput(
 		}
 	}
 
-	// Apply per-event color if specified (overrides calendar color)
-	if (frontmatter.color) {
-		event.backgroundColor = frontmatter.color;
-		event.borderColor = frontmatter.color;
-		event.textColor = getTextColorForBackground(frontmatter.color);
+	// Calendar view: the per-event color overrides the calendar color.
+	// Category view: the category color overrides the calendar color, and the
+	// per-event color is ignored.
+	const color =
+		colors?.colorMode === "category"
+			? colors.categoryColor
+			: frontmatter.color;
+	if (color) {
+		event.backgroundColor = color;
+		event.borderColor = color;
+		event.textColor = getTextColorForBackground(color);
 	}
 
 	return event;

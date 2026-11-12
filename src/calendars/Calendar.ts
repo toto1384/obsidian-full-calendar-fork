@@ -9,6 +9,8 @@ export type EventResponse = [OFCEvent, EventLocation | null];
  */
 export abstract class Calendar {
     color: string;
+    // Category for events in this calendar that do not set their own.
+    defaultCategory?: string;
 
     constructor(color: string) {
         this.color = color;

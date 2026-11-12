@@ -66,6 +66,7 @@ export const CommonSchema = z.object({
     taskLineNumber: z.number().optional(),
     description: z.string().optional(),
     location: z.string().optional(),
+    category: z.string().optional(),
 });
 
 

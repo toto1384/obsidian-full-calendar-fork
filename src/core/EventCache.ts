@@ -152,6 +152,9 @@ export default class EventCache {
         this.calendarInfos
             .flatMap((s) => {
                 const cal = this.calendarInitializers[s.type](s);
+                if (cal) {
+                    cal.defaultCategory = s.defaultCategory;
+                }
                 return cal || [];
             })
             .forEach((cal) => this.calendars.set(cal.id, cal));
@@ -378,6 +381,10 @@ export default class EventCache {
      * @param eventId ID of event in question.
      * @returns Calendar name or undefined if not found.
      */
+    getCalendarIdForEvent(eventId: string): string | undefined {
+        return this.store.getEventDetails(eventId)?.calendarId;
+    }
+
     getCalendarNameForEvent(eventId: string): string | undefined {
         const details = this.store.getEventDetails(eventId);
         if (!details) {

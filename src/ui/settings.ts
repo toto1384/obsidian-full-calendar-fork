@@ -9,6 +9,7 @@ import {
     TFolder,
 } from "obsidian";
 import { makeDefaultPartialCalendarSource, CalendarInfo } from "../types";
+import { ColorMode } from "./interop";
 import { CalendarSettings } from "./components/CalendarSetting";
 import { AddCalendarSource } from "./components/AddCalendarSource";
 import * as ReactDOM from "react-dom";
@@ -17,8 +18,15 @@ import { getDailyNoteSettings } from "obsidian-daily-notes-interface";
 import ReactModal from "./ReactModal";
 import { importCalendars } from "src/calendars/parsing/caldav/import";
 
+export interface Category {
+    name: string;
+    color: string;
+}
+
 export interface FullCalendarSettings {
     calendarSources: CalendarInfo[];
+    categories: Category[];
+    colorMode: ColorMode;
     defaultCalendar: number;
     firstDay: number;
     initialView: {
@@ -35,6 +43,8 @@ export interface FullCalendarSettings {
 
 export const DEFAULT_SETTINGS: FullCalendarSettings = {
     calendarSources: [],
+    categories: [],
+    colorMode: "calendar",
     defaultCalendar: 0,
     firstDay: 0,
     initialView: {
@@ -289,6 +299,8 @@ export class FullCalendarSettingTab extends PluginSettingTab {
                 });
         }
 
+        this.displayCategories(containerEl);
+
         containerEl.createEl("h2", { text: "Manage Calendars" });
         addCalendarButton(
             this.app,
@@ -308,6 +320,7 @@ export class FullCalendarSettingTab extends PluginSettingTab {
         let sourceList = ReactDOM.render(
             createElement(CalendarSettings, {
                 sources: this.plugin.settings.calendarSources,
+                categories: this.plugin.settings.categories.map((c) => c.name),
                 submit: async (settings: CalendarInfo[]) => {
                     this.plugin.settings.calendarSources = settings;
                     await this.plugin.saveSettings();
@@ -315,5 +328,89 @@ export class FullCalendarSettingTab extends PluginSettingTab {
             }),
             sourcesDiv
         );
+    }
+
+    displayCategories(containerEl: HTMLElement) {
+        containerEl.createEl("h2", { text: "Categories" });
+        containerEl.createEl("p", {
+            cls: "setting-item-description",
+            text: "Each calendar can have a default category, and each event can override it. The toolbar button switches event colors between calendars and categories. In category view, per-event colors are ignored.",
+        });
+
+        const plugin = this.plugin;
+        plugin.settings.categories.forEach((category) => {
+            new Setting(containerEl)
+                .addText((text) => {
+                    text.setValue(category.name);
+                    text.inputEl.addEventListener("blur", async () => {
+                        const newName = text.getValue().trim();
+                        if (newName === category.name) {
+                            return;
+                        }
+                        if (
+                            !newName ||
+                            plugin.settings.categories.some(
+                                (c) => c.name === newName
+                            )
+                        ) {
+                            new Notice("Category names must be unique and not empty.");
+                            text.setValue(category.name);
+                            return;
+                        }
+                        const changed = await plugin.renameCategory(
+                            category.name,
+                            newName
+                        );
+                        new Notice(
+                            `Renamed category. Updated ${changed} event note(s).`
+                        );
+                        this.display();
+                    });
+                })
+                .addColorPicker((picker) => {
+                    picker.setValue(category.color);
+                    picker.onChange(async (color) => {
+                        category.color = color;
+                        await plugin.saveCategories();
+                    });
+                })
+                .addExtraButton((button) => {
+                    button.setIcon("trash");
+                    button.setTooltip("Delete category");
+                    button.onClick(async () => {
+                        plugin.settings.categories =
+                            plugin.settings.categories.filter(
+                                (c) => c !== category
+                            );
+                        plugin.settings.calendarSources.forEach((s) => {
+                            if (s.defaultCategory === category.name) {
+                                delete s.defaultCategory;
+                            }
+                        });
+                        await plugin.saveSettings();
+                        this.display();
+                    });
+                });
+        });
+
+        new Setting(containerEl).addButton((button) => {
+            button.setButtonText("Add category");
+            button.onClick(async () => {
+                let name = "New category";
+                for (
+                    let i = 2;
+                    plugin.settings.categories.some((c) => c.name === name);
+                    i++
+                ) {
+                    name = `New category ${i}`;
+                }
+                plugin.settings.categories = [
+                    ...plugin.settings.categories,
+                    { name, color: "#3788d8" },
+                ];
+                await plugin.saveCategories();
+                this.display();
+            });
+        });
     }
 }
