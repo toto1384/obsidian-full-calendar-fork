@@ -392,4 +392,24 @@ export default class FullCalendarPlugin extends Plugin {
 		await this.cache.populate();
 		this.cache.resync();
 	}
+
+	/**
+	 * Obsidian calls this when data.json changes on disk (a script, Sync).
+	 * Reload it, so the next save does not write the old settings back.
+	 */
+	async onExternalSettingsChange() {
+		await this.loadSettings();
+
+		let sources = [...this.settings.calendarSources];
+		if (this.settings.showTasksCalendar) {
+			sources.push({
+				type: "tasks" as const,
+				color: this.settings.tasksCalendarColor,
+			});
+		}
+
+		this.cache.reset(sources);
+		await this.cache.populate();
+		this.redrawViews();
+	}
 }
