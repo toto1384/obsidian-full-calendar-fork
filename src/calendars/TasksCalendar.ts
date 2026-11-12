@@ -19,6 +19,9 @@ interface TaskItem {
 	doneDate: MomentDate | null;
 	status: any;
 	originalMarkdown: string;
+	path?: string;
+	lineNumber?: number;
+	taskLocation?: { path: string; lineNumber: number };
 }
 
 export default class TasksCalendar extends RemoteCalendar {
@@ -82,16 +85,24 @@ export default class TasksCalendar extends RemoteCalendar {
 		return this.events;
 	}
 
+	private isCancelled(task: TaskItem): boolean {
+		return task.status.isCancelled?.() ?? /\[-\]/.test(task.originalMarkdown);
+	}
+
 	private convertTasksToEvents(tasks: TaskItem[]): EventResponse[] {
 		return tasks
-			.filter((task) => task.dueDate && !task.status.isCompleted())
+			.filter((task) => task.dueDate && !task.status.isCompleted() && !this.isCancelled(task))
 			.map((task) => {
+				const filePath = task.path ?? task.taskLocation?.path;
+				const lineNumber = task.lineNumber ?? task.taskLocation?.lineNumber;
 				const event: OFCEvent = {
 					title: task.description,
 					type: "single",
 					date: task.dueDate!.format("YYYY-MM-DD"),
 					endDate: null,
 					allDay: true,
+					...(filePath !== undefined && { taskPath: filePath }),
+					...(lineNumber !== undefined && { taskLineNumber: lineNumber }),
 				};
 				return [event, null] as EventResponse;
 			});

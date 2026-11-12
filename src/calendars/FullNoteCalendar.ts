@@ -6,8 +6,18 @@ import { OFCEvent, EventLocation, validateEvent } from "../types";
 import { EditableCalendar, EditableEventResponse } from "./EditableCalendar";
 import { DateTime } from "luxon";
 
+// Characters that are illegal in file names (Windows + path separators) or
+// that break Obsidian note titles/links (# ^ [ ] |). We strip these from the
+// FILENAME only — the full, original title (with ":" etc.) is preserved in the
+// event's `title` frontmatter property, which is what the calendar reads back.
+const sanitizeForFilename = (title: string): string =>
+    title
+        .replace(/[\\/:*?"<>|#^[\]]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
 const basenameFromEvent = (event: OFCEvent): string => {
-    const formattedTitle = event.title.replace('.', ',').replace('/', ",").replace("\\", ",")
+    const formattedTitle = sanitizeForFilename(event.title);
     switch (event.type) {
         case undefined:
         case "single":
@@ -229,10 +239,29 @@ export default class FullNoteCalendar extends EditableCalendar {
 
     private async getAllEvents(eventFolder: TFolder): Promise<EditableEventResponse[]> {
         const events: EditableEventResponse[] = [];
-        for (const file of eventFolder.children) {
-            if (file instanceof TFile) {
-                const results = await this.getEventsInFile(file);
-                events.push(...results);
+        const files = eventFolder.children.filter(
+            (file) => file instanceof TFile
+        ) as TFile[];
+
+        // Parse in batches and yield a macrotask between them so the UI thread
+        // can paint. Same set of events is loaded as before (no date filtering
+        // here) — this only turns the initial burst from a freeze into a brief
+        // background fill.
+        const batchSize = 50;
+        for (let i = 0; i < files.length; i += batchSize) {
+            const batch = files.slice(i, i + batchSize);
+            const batchResults = await Promise.all(
+                batch.map(async (file) => {
+                    try {
+                        return await this.getEventsInFile(file);
+                    } catch (error) {
+                        return [];
+                    }
+                })
+            );
+            events.push(...batchResults.flat());
+            if (i + batchSize < files.length) {
+                await new Promise((resolve) => setTimeout(resolve, 0));
             }
         }
         return events;

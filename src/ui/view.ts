@@ -11,8 +11,17 @@ import {
 } from "./interop";
 import { renderOnboarding } from "./onboard";
 import { openFileForEvent, openDailyNote } from "./actions";
-import { launchCreateModal, launchEditModal, launchEventInfoModal } from "./event_modal";
+import { launchCreateModal, launchEditModal, launchEventInfoModal, deleteEventWithPrompt } from "./event_modal";
 import { isTask, toggleTask, unmakeTask } from "src/ui/tasks";
+
+// Occurrence's wall-clock date (YYYY-MM-DD) from a FullCalendar EventApi start.
+// Events are stored "fake UTC" (UTC components = intended wall-clock time), so
+// read the UTC parts to get the day the clicked occurrence appears on.
+function occurrenceDate(start: Date | null): string | null {
+	if (!start) return null;
+	const p = (n: number) => String(n).padStart(2, "0");
+	return `${start.getUTCFullYear()}-${p(start.getUTCMonth() + 1)}-${p(start.getUTCDate())}`;
+}
 import { UpdateViewCallback } from "src/core/EventCache";
 
 export const FULL_CALENDAR_VIEW_TYPE = "full-calendar-view";
@@ -82,17 +91,22 @@ export class CalendarView extends ItemView {
 	}
 
 	translateSources() {
-		// Get current date range from calendar view for performance optimization
-		const dateRange = this.getDateRangeFromView();
-		return this.plugin.cache.getAllEvents(dateRange).map(({ events, editable, color, id }): EventSourceInput => ({
+		const cache = this.plugin.cache;
+		// Use function-based sources so FullCalendar re-fetches on navigation
+		return cache.getAllEvents().map(({ editable, color, id }): EventSourceInput => ({
 			id,
-			events: events.flatMap(
-				(e) => toEventInput(e.id, e.event) || []
-			),
+			events: (fetchInfo, successCallback, failureCallback) => {
+				try {
+					const dateRange = { start: fetchInfo.start, end: fetchInfo.end };
+					const filtered = cache.getEventsForCalendar(id, dateRange);
+					successCallback(filtered.flatMap(e => toEventInput(e.id, e.event) || []));
+				} catch (e) {
+					failureCallback(e as Error);
+				}
+			},
 			editable,
 			...getCalendarColors(color),
-		})
-		);
+		}));
 	}
 
 	private getDateRangeFromView(): { start: Date; end: Date } | undefined {
@@ -173,32 +187,12 @@ export class CalendarView extends ItemView {
 						}
 					} else {
 						if (isEditable) {
-							launchEditModal(this.plugin, info.event.id);
+							launchEditModal(this.plugin, info.event.id, occurrenceDate(info.event.start));
 						} else {
 							// Show info modal for read-only events
 							launchEventInfoModal(this.plugin, info.event.id);
 						}
 					}
-				} catch (e) {
-					if (e instanceof Error) {
-						console.warn(e);
-						new Notice(e.message);
-					}
-				}
-			},
-			dateClick: async (info) => {
-				try {
-					await openDailyNote(info.date, this.app);
-				} catch (e) {
-					if (e instanceof Error) {
-						console.warn(e);
-						new Notice(e.message);
-					}
-				}
-			},
-			dayHeaderClick: async (date) => {
-				try {
-					await openDailyNote(date, this.app);
 				} catch (e) {
 					if (e instanceof Error) {
 						console.warn(e);
@@ -315,12 +309,43 @@ export class CalendarView extends ItemView {
 						})
 					);
 					menu.addItem((item) =>
+						item.setTitle("Duplicate").onClick(async () => {
+							if (!this.plugin.cache) {
+								return;
+							}
+							const original = this.plugin.cache.getEventById(
+								e.id
+							);
+							if (!original) {
+								return;
+							}
+							const { calendar } =
+								this.plugin.cache.getInfoForEditableEvent(e.id);
+							// New id + " (copy)" title so the duplicate gets its
+							// own event id and its own note file (filenames are
+							// title+date based, so an identical title collides).
+							const copy = {
+								...original,
+								id: undefined,
+								title: `${original.title} (copy)`,
+							};
+							await this.plugin.cache.addEvent(calendar.id, copy);
+							new Notice(`Duplicated event "${original.title}".`);
+						})
+					);
+					menu.addItem((item) =>
 						item.setTitle("Delete").onClick(async () => {
 							if (!this.plugin.cache) {
 								return;
 							}
-							await this.plugin.cache.deleteEvent(e.id);
-							new Notice(`Deleted event "${e.title}".`);
+							// Recurring events open a chooser (this occurrence /
+							// whole series); single events delete directly.
+							deleteEventWithPrompt(
+								this.plugin,
+								e.id,
+								occurrenceDate(e.start),
+								e.title
+							);
 						})
 					);
 				} else {

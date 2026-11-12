@@ -166,6 +166,23 @@ export function toEventInput(
 		if (dtstart === null) {
 			return null;
 		}
+		// Create a "fake UTC" Date where UTC components equal the intended wall-clock
+		// time. FullCalendar's rrule expand function returns dates in this format —
+		// it reads UTC components directly as the local display time — so dtstart
+		// must be consistent with that scheme to avoid DST-induced hour/day shifts.
+		const dtstartJs = frontmatter.allDay
+			? dtstart.toJSDate()
+			: new Date(
+					Date.UTC(
+						dtstart.year,
+						dtstart.month - 1,
+						dtstart.day,
+						dtstart.hour,
+						dtstart.minute,
+						dtstart.second,
+					),
+			  );
+
 		// NOTE: how exdates are handled does not support events which recur more than once per day.
 		const exdate = (frontmatter.skipDates ?? [])
 			.map((d) => {
@@ -173,13 +190,13 @@ export function toEventInput(
 				// RRule only has one dtstart that doesn't know about DST/timezone changes.
 				// Therefore, just concatenate the date for this exdate and the start time for the event together.
 				const date = DateTime.fromISO(d).toISODate();
-				const time = dtstart.toJSDate().toISOString().split("T")[1];
+				// Use dtstartJs (fake UTC) so the exdate timestamp matches the fake-UTC
+				// occurrence timestamps that rrule will generate, enabling correct exclusion.
+				const time = dtstartJs.toISOString().split("T")[1];
 
 				return `${date}T${time}`;
 			})
 			.flatMap((d) => (d ? d : []));
-
-		const dtstartJs = dtstart.toJSDate();
 
 		event = {
 			id,

@@ -4,6 +4,7 @@ import { OFCEvent } from "src/types";
 interface EventInfoProps {
 	event: OFCEvent;
 	calendarName?: string;
+	onOpenSource?: () => void;
 }
 
 const DAYS_OF_WEEK: Record<string, string> = {
@@ -37,7 +38,26 @@ function formatTime(timeStr: string): string {
 	});
 }
 
-export function EventInfo({ event, calendarName }: EventInfoProps) {
+const URL_PATTERN = /(https?:\/\/[^\s<>()"]+[^\s<>()".,;:!?'])/g;
+
+// Split text on URLs so each URL renders as a clickable link.
+function Linkified({ text }: { text: string }) {
+	return (
+		<>
+			{text.split(URL_PATTERN).map((part, i) =>
+				i % 2 === 1 ? (
+					<a key={i} href={part} target="_blank" rel="noopener">
+						{part}
+					</a>
+				) : (
+					part
+				),
+			)}
+		</>
+	);
+}
+
+export function EventInfo({ event, calendarName, onOpenSource }: EventInfoProps) {
 	return (
 		<div className="ofc-event-info">
 			<h2 className="ofc-event-info-title">{event.title}</h2>
@@ -46,6 +66,15 @@ export function EventInfo({ event, calendarName }: EventInfoProps) {
 				<div className="ofc-event-info-row">
 					<span className="ofc-event-info-label">Calendar:</span>
 					<span className="ofc-event-info-value">{calendarName}</span>
+				</div>
+			)}
+
+			{event.taskPath && (
+				<div className="ofc-event-info-row">
+					<span className="ofc-event-info-label">Note:</span>
+					<span className="ofc-event-info-value">
+						{event.taskPath.split("/").pop()?.replace(/\.md$/, "") ?? event.taskPath}
+					</span>
 				</div>
 			)}
 
@@ -121,13 +150,39 @@ export function EventInfo({ event, calendarName }: EventInfoProps) {
 				</div>
 			)}
 
-			<div className="ofc-event-info-note">
-				This is a read-only event from a remote calendar.
-			</div>
+			{event.location && (
+				<div className="ofc-event-info-row">
+					<span className="ofc-event-info-label">Location:</span>
+					<span className="ofc-event-info-value">
+						<Linkified text={event.location} />
+					</span>
+				</div>
+			)}
+
+			{event.description && (
+				<div className="ofc-event-info-description">
+					<Linkified text={event.description} />
+				</div>
+			)}
+
+			{onOpenSource ? (
+				<button
+					className="ofc-event-info-open-btn"
+					onClick={onOpenSource}
+				>
+					Open in note
+				</button>
+			) : (
+				<div className="ofc-event-info-note">
+					This is a read-only event from a remote calendar.
+				</div>
+			)}
 
 			<style>{`
 				.ofc-event-info {
 					padding: 10px 0;
+					user-select: text;
+					-webkit-user-select: text;
 				}
 				.ofc-event-info-title {
 					margin: 0 0 16px 0;
@@ -147,6 +202,14 @@ export function EventInfo({ event, calendarName }: EventInfoProps) {
 				}
 				.ofc-event-info-value {
 					flex: 1;
+					min-width: 0;
+					overflow-wrap: anywhere;
+				}
+				.ofc-event-info-description {
+					margin-top: 16px;
+					white-space: pre-wrap;
+					overflow-wrap: anywhere;
+					line-height: 1.5;
 				}
 				.ofc-event-info-note {
 					margin-top: 20px;
@@ -155,6 +218,20 @@ export function EventInfo({ event, calendarName }: EventInfoProps) {
 					border-radius: 4px;
 					font-size: 0.9em;
 					color: var(--text-muted);
+				}
+				.ofc-event-info-open-btn {
+					margin-top: 20px;
+					width: 100%;
+					padding: 8px 12px;
+					background: var(--interactive-accent);
+					color: var(--text-on-accent);
+					border: none;
+					border-radius: 4px;
+					font-size: 0.9em;
+					cursor: pointer;
+				}
+				.ofc-event-info-open-btn:hover {
+					background: var(--interactive-accent-hover);
 				}
 			`}</style>
 		</div>

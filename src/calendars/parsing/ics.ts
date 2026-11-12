@@ -35,6 +35,41 @@ function extractEventUrl(iCalEvent: ical.Event): string {
 	return urlProp ? urlProp.getFirstValue() : "";
 }
 
+// Google Calendar sends some descriptions as HTML. Reduce them to plain text,
+// keeping link targets so they can be shown and clicked.
+function htmlToText(html: string): string {
+	if (!/<[a-z][\s\S]*>/i.test(html)) {
+		return html;
+	}
+	return html
+		.replace(
+			/<a\b[^>]*?href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi,
+			(_, href: string, inner: string) => {
+				const text = inner.replace(/<[^>]+>/g, "").trim();
+				return !text || text === href ? href : `${text} (${href})`;
+			},
+		)
+		.replace(/<br\s*\/?>/gi, "\n")
+		.replace(/<\/(p|div|li)>/gi, "\n")
+		.replace(/<[^>]+>/g, "")
+		.replace(/&nbsp;/g, " ")
+		.replace(/&lt;/g, "<")
+		.replace(/&gt;/g, ">")
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, "'")
+		.replace(/&amp;/g, "&")
+		.replace(/\n{3,}/g, "\n\n");
+}
+
+function extractText(iCalEvent: ical.Event, name: string): object {
+	const value = iCalEvent.component.getFirstPropertyValue(name);
+	if (typeof value !== "string") {
+		return {};
+	}
+	const text = htmlToText(value).trim();
+	return text ? { [name]: text } : {};
+}
+
 function specifiesEnd(iCalEvent: ical.Event) {
 	return (
 		Boolean(iCalEvent.component.getFirstProperty("dtend")) ||
@@ -63,6 +98,8 @@ function icsToOFC(input: ical.Event): OFCEvent {
 		return {
 			type: "rrule",
 			title: input.summary,
+			...extractText(input, "description"),
+			...extractText(input, "location"),
 			id: `ics::${input.uid}::${getDate(input.startDate)}::recurring`,
 			rrule: rrule.toString(),
 			skipDates: exdates,
@@ -86,6 +123,8 @@ function icsToOFC(input: ical.Event): OFCEvent {
 			type: "single",
 			id: `ics::${input.uid}::${date}::single`,
 			title: input.summary,
+			...extractText(input, "description"),
+			...extractText(input, "location"),
 			date,
 			endDate: date !== endDate ? endDate || null : null,
 			...(allDay

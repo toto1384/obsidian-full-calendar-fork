@@ -79,34 +79,28 @@ export default class FullCalendarPlugin extends Plugin {
 	};
 	renderCalendar = renderCalendar;
 
-	//non finished code, for later
-	displayCalendar = (container: any) => {
-		const { renderCalendar, cache, translateSources } = this;
+	renderCalendarFromCache = async (
+		container: HTMLElement,
+		settings?: Parameters<typeof renderCalendar>[2]
+	) => {
+		if (!this.cache.initialized) {
+			await this.cache.populate();
+		}
 
-
-		(window as any).calendar = renderCalendar(
+		const cal = renderCalendar(
 			container,
-			translateSources(cache),
-			{
-				initialView: { desktop: "timeGridDay", mobile: "timeGridDay" } as any,
-				customButtons: {
-					addZoom: {
-						text: '+',
-						click: function() {
-							// increment(true)
-						}
-					},
-					decreaseZoom: {
-						text: '-',
-						click: function() {
-							// increment(false)
-						}
-					}
-				},
-			},
-
+			this.translateSources(this.cache),
+			settings
 		);
-		(window as any).calendar.render()
+
+		// The markdown preview view has its own scrollbar that conflicts with
+		// FullCalendar's internal time-grid scroller. Hide the outer one.
+		const markdownPreview = container.closest(
+			".markdown-preview-view"
+		) as HTMLElement | null;
+		if (markdownPreview) markdownPreview.style.overflowY = "hidden";
+
+		return cal;
 	};
 	processFrontmatter = toEventInput;
 	getCalendarColors = getCalendarColors;
@@ -214,6 +208,22 @@ export default class FullCalendarPlugin extends Plugin {
 			name: "Revalidate remote calendars",
 			callback: () => {
 				this.cache.revalidateRemoteCalendars(true);
+			},
+		});
+
+		// Keyboard equivalent of the ↻ reload-events button in the calendar view.
+		this.addCommand({
+			id: "full-calendar-reload-events",
+			name: "Reload all events",
+			callback: async () => {
+				try {
+					new Notice("Reloading all events...");
+					await this.cache.reloadAll();
+					new Notice("Events reloaded successfully");
+				} catch (error) {
+					console.error("Failed to reload events:", error);
+					new Notice("Failed to reload events");
+				}
 			},
 		});
 

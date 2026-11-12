@@ -82,14 +82,19 @@
 }
 
 /* Time period background colors - specific to time grid slot lanes */
-.fc-timegrid-col .fc-timegrid-slot-lane.ofc-morning-slot {
+.fc-timegrid-slot-lane.ofc-morning-slot {
 	background-color: rgba(34, 197, 94, 0.15) !important; /* Green semi-transparent */
 }
 
-.fc-timegrid-col .fc-timegrid-slot-lane.ofc-afternoon-slot {
+.fc-timegrid-slot-lane.ofc-afternoon-slot {
 	background-color: rgba(59, 130, 246, 0.15) !important; /* Blue semi-transparent */
 }
 
-.fc-timegrid-col .fc-timegrid-slot-lane.ofc-evening-slot {
+.fc-timegrid-slot-lane.ofc-evening-slot {
 	background-color: rgba(251, 191, 36, 0.15) !important; /* Yellow semi-transparent */
+}
+
+/* Hide time label on short events so only the title is visible */
+.fc-timegrid-event-short .fc-event-time {
+	display: none !important;
 }

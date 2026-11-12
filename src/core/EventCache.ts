@@ -104,6 +104,22 @@ export default class EventCache {
     // Track previous ghost event for efficient updates
     private previousGhostEvent: { event: OFCEvent; calendarId: string; id: string } | null = null;
 
+    // Paths this cache just wrote itself. Obsidian's metadataCache fires a
+    // "changed" event for every write, which calls fileUpdated() — but these
+    // writes were already applied to the store and the view synchronously by the
+    // mutation methods. Re-processing that echo re-adds the same event under a
+    // freshly generated id (frontmatter carries no stable id), producing a
+    // duplicate that only a full reload clears. We skip the next fileUpdated()
+    // for a path we just wrote, so the operation goes through a single path.
+    private pathsToIgnore: Set<string> = new Set();
+
+    private ignoreNextChange(path: string): void {
+        this.pathsToIgnore.add(path);
+        // Safety net: if the metadata echo never arrives, don't let a stale
+        // entry swallow a later genuine edit of the same file.
+        setTimeout(() => this.pathsToIgnore.delete(path), 2000);
+    }
+
     generateId(): string {
         return `${this.pkCounter++}`;
     }
@@ -214,25 +230,51 @@ export default class EventCache {
     }
 
     /**
+     * Get events for a single calendar, optionally filtered to a date range.
+     * Recurring/rrule events are always included (FullCalendar expands them).
+     * Single events are filtered to avoid rendering off-screen DOM nodes.
+     */
+    getEventsForCalendar(calId: string, dateRange?: { start: Date; end: Date }) {
+        // Read only this calendar's events from the maintained calendarIndex,
+        // instead of rebuilding the whole-store eventsByCalendar map per call.
+        const calendar = this.calendars.get(calId);
+        const events = calendar ? this.store.getEventsInCalendar(calendar) : [];
+        let eventsList = events.map(({ event, id }) => ({ event, id }));
+
+        if (dateRange) {
+            // Expand range slightly to catch multi-day events that start just before the view
+            const rangeStart = new Date(dateRange.start);
+            rangeStart.setDate(rangeStart.getDate() - 1);
+            const startStr = rangeStart.toISOString().split('T')[0];
+            const endStr = dateRange.end.toISOString().split('T')[0];
+
+            eventsList = eventsList.filter(({ event }) => {
+                if (event.type !== 'single') return true; // let FC handle recurring/rrule
+                const eventDate = event.date;
+                const eventEndDate = event.endDate ?? event.date;
+                return eventDate <= endStr && eventEndDate >= startStr;
+            });
+        }
+
+        return eventsList;
+    }
+
+    /**
      * Get all events from the cache in a FullCalendar-friendly format.
      * Optional dateRange parameter for performance optimization.
      * @returns EventSourceInputs for FullCalendar.
      */
     getAllEvents(dateRange?: { start: Date; end: Date }): OFCEventSource[] {
         const result: OFCEventSource[] = [];
-        const eventsByCalendar = this.store.eventsByCalendar;
         for (const [calId, calendar] of this.calendars.entries()) {
-            const events = eventsByCalendar.get(calId) || [];
-            const eventsList = events.map(({ event, id }) => ({ event, id })); // make sure not to leak location data past the cache.
-            
             result.push({
                 editable: calendar instanceof EditableCalendar,
-                events: eventsList,
+                events: this.getEventsForCalendar(calId, dateRange),
                 color: calendar.color,
                 id: calId,
             });
         }
-        
+
         return result;
     }
 
@@ -421,6 +463,7 @@ export default class EventCache {
             throw new Error(`Cannot add event to a read-only calendar`);
         }
         const location = await calendar.createEvent(event);
+        this.ignoreNextChange(location.file.path);
         const id = this.store.add({
             calendar,
             location,
@@ -448,6 +491,37 @@ export default class EventCache {
     }
 
     /**
+     * Delete an event of any type, including a whole recurring series
+     * (the series lives in one note, so deleting that note removes it all).
+     */
+    async deleteEventSeries(eventId: string): Promise<void> {
+        const { calendar, location } = this.getInfoForEditableEvent(eventId);
+        this.store.delete(eventId);
+        await calendar.deleteEvent(location);
+        this.updateViews([eventId], []);
+    }
+
+    /**
+     * "Delete this occurrence" for a recurring/rrule event: add the given
+     * date (YYYY-MM-DD) to its skipDates so that one day is omitted while the
+     * rest of the series stays intact.
+     */
+    async skipRecurringInstance(eventId: string, date: string): Promise<void> {
+        const event = this.getEventById(eventId);
+        if (!event || (event.type !== "recurring" && event.type !== "rrule")) {
+            return;
+        }
+        const existing = (event as any).skipDates ?? [];
+        if (existing.includes(date)) {
+            return;
+        }
+        await this.updateEventWithId(eventId, {
+            ...event,
+            skipDates: [...existing, date],
+        } as OFCEvent);
+    }
+
+    /**
      * Update an event with a given ID.
      * @param eventId ID of event to update.
      * @param newEvent new event contents
@@ -465,6 +539,7 @@ export default class EventCache {
         let oldEvent: OFCEvent | undefined | null;
 
         await calendar.modifyEvent({ path, lineNumber }, newEvent, (newLocation) => {
+            this.ignoreNextChange(newLocation.file.path);
             oldEvent = this.store.delete(eventId);
 
             // if(newEvent as OFCEvent).date !=oldEvent) - modify if updated
@@ -521,6 +596,7 @@ export default class EventCache {
                 console.log("🚀 ~ EventCache ~ newRecurringEvent:", newRecurringEvent)
 
                 const newRecurringLocation = await calendar.createEvent(newRecurringEvent)
+                this.ignoreNextChange(newRecurringLocation.file.path)
 
                 const newId = this.generateId()
                 this.store.add({
@@ -541,6 +617,7 @@ export default class EventCache {
 
 
                 const newRecurringLocation = await calendar.createEvent(newRecurringEvent)
+                this.ignoreNextChange(newRecurringLocation.file.path)
 
                 const newId = this.generateId()
                 this.store.add({
@@ -654,6 +731,15 @@ export default class EventCache {
      */
     async fileUpdated(file: TFile): Promise<void> {
         console.debug("fileUpdated() called for file", file.path);
+
+        // Skip the metadataCache echo of a write we just made ourselves — the
+        // store and view were already updated synchronously by the mutation that
+        // wrote this file. Re-processing it here would duplicate the event.
+        if (this.pathsToIgnore.has(file.path)) {
+            this.pathsToIgnore.delete(file.path);
+            console.debug("fileUpdated: ignoring self-write echo for", file.path);
+            return;
+        }
 
         // Get all calendars that contain events stored in this file.
         const calendars = [...this.calendars.values()].flatMap((c) =>

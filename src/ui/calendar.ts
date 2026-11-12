@@ -20,17 +20,22 @@ import { DateTime } from "luxon";
 import moment from "moment";
 
 rrulePlugin.recurringTypes[0].expand = function (errd, fr, de) {
-	const hours = errd.rruleSet._dtstart.getHours();
+	// dtstart is stored as "fake UTC": its UTC components equal the intended
+	// wall-clock time (e.g. UTC 23:30 represents local 23:30 regardless of DST).
+	// Use getUTC* throughout so DST never shifts the hours or calendar date.
+	const dtstart = errd.rruleSet._dtstart;
+	const hours = dtstart.getUTCHours();
+	const minutes = dtstart.getUTCMinutes();
 	return errd.rruleSet
 		.between(de.toDate(fr.start), de.toDate(fr.end), true)
 		.map((d: Date) => {
 			return new Date(
 				Date.UTC(
-					d.getFullYear(),
-					d.getMonth(),
-					d.getDate(),
+					d.getUTCFullYear(),
+					d.getUTCMonth(),
+					d.getUTCDate(),
 					hours,
-					d.getMinutes(),
+					minutes,
 				),
 			);
 		});
@@ -144,6 +149,7 @@ export function renderCalendar(
 				type: "dayGrid",
 				duration: { days: 365 },
 				buttonText: "Year",
+				dayMaxEvents: 3,
 			},
 			habitsView: {
 				type: "timeGrid",
@@ -159,9 +165,9 @@ export function renderCalendar(
 				minute: "2-digit",
 				hour12: false,
 			},
+			// Hour only ("01", "13") to keep the time strip narrow
 			slotLabelFormat: {
-				hour: "numeric",
-				minute: "2-digit",
+				hour: "2-digit",
 				hour12: false,
 			},
 		}),
@@ -222,104 +228,6 @@ export function renderCalendar(
 					dayHeaderClick(date);
 				});
 				el.style.cursor = "pointer";
-			}
-
-			// Add habits percent to day header with retry mechanism
-			const addHabitsPercent = () => {
-				try {
-					const dateFile = moment(date).format("YYYY-MM-DD");
-					if (
-						(window as any).habitUtils &&
-						(window as any).habitUtils.habitsPercentByName
-					) {
-						const habitsResult = (
-							window as any
-						).habitUtils.habitsPercentByName(dateFile);
-						if (
-							habitsResult &&
-							habitsResult.habitsPercent !== undefined &&
-							habitsResult.habitsPercent !== null
-						) {
-							const percent = Math.round(
-								habitsResult.habitsPercent,
-							);
-
-							// Make parent relative for absolute positioning
-							el.style.position = "relative";
-							el.style.paddingLeft = "18px"; // Make room for the circle
-
-							// Create circle indicator
-							const circleContainer =
-								document.createElement("span");
-							circleContainer.style.position = "absolute";
-							circleContainer.style.left = "2px";
-							circleContainer.style.top = "50%";
-							circleContainer.style.transform =
-								"translateY(-50%)";
-							circleContainer.style.width = "12px";
-							circleContainer.style.height = "12px";
-
-							const circle = document.createElement("div");
-							circle.style.width = "12px";
-							circle.style.height = "12px";
-							circle.style.borderRadius = "50%";
-							circle.style.position = "relative";
-							circle.style.overflow = "hidden";
-							circle.style.backgroundColor =
-								"rgba(255, 255, 255, 0.3)";
-
-							// Determine color based on percentage
-							let fillColor;
-							if (percent >= 65) {
-								fillColor = "#22c55e"; // Green
-							} else if (percent >= 40) {
-								fillColor = "#eab308"; // Yellow
-							} else {
-								fillColor = "#ef4444"; // Red
-							}
-
-							// Create fill section based on percentage
-							const fill = document.createElement("div");
-							fill.style.position = "absolute";
-							fill.style.top = "0";
-							fill.style.left = "0";
-							fill.style.width = "100%";
-							fill.style.height = `${percent}%`;
-							fill.style.backgroundColor = fillColor;
-							fill.style.borderRadius = "50%";
-							fill.style.transform = `rotate(${(percent / 100) * 360}deg)`;
-							fill.style.transformOrigin = "center bottom";
-
-							// Better approach: use conic-gradient for accurate percentage display
-							circle.style.background = `conic-gradient(${fillColor} 0deg ${(percent / 100) * 360}deg, rgba(255, 255, 255, 0.3) ${(percent / 100) * 360}deg 360deg)`;
-
-							circleContainer.appendChild(circle);
-							el.appendChild(circleContainer);
-						}
-						return true; // Success
-					}
-					return false; // Function not available yet
-				} catch (error) {
-					console.warn(
-						"Failed to get habits percent for date:",
-						date,
-						error,
-					);
-					return true; // Don't retry on actual errors
-				}
-			};
-
-			// Try immediately first
-			if (!addHabitsPercent()) {
-				// If not available, retry every 5 seconds for 1 minute
-				let attempts = 0;
-				const maxAttempts = 12; // 12 * 5 seconds = 60 seconds
-				const retryInterval = setInterval(() => {
-					attempts++;
-					if (addHabitsPercent() || attempts >= maxAttempts) {
-						clearInterval(retryInterval);
-					}
-				}, 5000);
 			}
 		},
 
@@ -394,10 +302,6 @@ export function renderCalendar(
 		longPressDelay: settings?.longPressDelay,
 	});
 
-	setInterval(() => {
-		cal?.refetchEvents();
-	}, 30000);
-
 	function calculateDuration(start: Date, end: Date) {
 		const duration = moment(end).diff(moment(start), "minutes");
 		const hours = Math.floor(duration / 60);
@@ -413,5 +317,20 @@ export function renderCalendar(
 	}
 
 	cal.render();
+
+	// If the container has zero size at render time (e.g. rendered inside a
+	// hidden tab), FullCalendar skips slot-height calculations and the time
+	// grid never appears. Watch for the first time the container gains real
+	// dimensions and force a layout recalculation.
+	if (containerEl.offsetWidth === 0 || containerEl.offsetHeight === 0) {
+		const observer = new ResizeObserver(() => {
+			if (containerEl.offsetWidth > 0 && containerEl.offsetHeight > 0) {
+				observer.disconnect();
+				cal.updateSize();
+			}
+		});
+		observer.observe(containerEl);
+	}
+
 	return cal;
 }
