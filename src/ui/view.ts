@@ -252,9 +252,16 @@ export class CalendarView extends ItemView {
 			}),
 			modifyEvent: async (newEvent, oldEvent) => {
 				try {
+					// The rendered color is the category color in category
+					// view, so keep the stored color and category instead.
+					const stored = this.plugin.cache.getEventById(oldEvent.id);
 					const didModify = await this.plugin.cache.updateEventWithId(
 						oldEvent.id,
-						fromEventApi(newEvent)
+						{
+							...fromEventApi(newEvent),
+							color: stored?.color,
+							category: stored?.category,
+						}
 					);
 					return !!didModify;
 				} catch (e: any) {
