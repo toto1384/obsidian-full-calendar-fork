@@ -562,6 +562,7 @@ export const EditEvent = ({
 							type="button"
 							className="clickable-icon"
 							aria-label="Open note"
+							style={{ cursor: "pointer" }}
 							onClick={open}
 						/>
 					)}
