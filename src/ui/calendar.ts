@@ -357,6 +357,11 @@ function isTextHidden(el: HTMLElement): boolean {
 	) {
 		return true;
 	}
+	// Time label hidden by CSS on short events (15-30 min)
+	const time = el.querySelector(".fc-event-time");
+	if (time?.textContent && time.getClientRects().length === 0) {
+		return true;
+	}
 	const title = el.querySelector(".fc-event-title");
 	const duration = el.querySelector(".fc-event-main-frame > p");
 	if (title && duration) {
