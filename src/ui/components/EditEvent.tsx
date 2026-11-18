@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 import * as React from "react";
 import { useEffect, useRef, useState } from "react";
+import { setIcon } from "obsidian";
 import { CalendarInfo, OFCEvent } from "../../types";
 
 function makeChangeListener<T>(
@@ -127,8 +128,6 @@ export const EditEvent = ({
 		initialEndTime = endTime || "";
 	}
 
-	const [expanded, setExpanded] = useState(true)
-
 	const [startTime, setStartTime] = useState(initialStartTime);
 	const [endTime, setEndTime] = useState(initialEndTime);
 	const [title, setTitle] = useState(initialEvent?.title || "");
@@ -169,12 +168,25 @@ export const EditEvent = ({
 			? [...categories, category]
 			: categories;
 
-	const titleRef = useRef<HTMLInputElement>(null);
+	const titleRef = useRef<HTMLTextAreaElement>(null);
 	useEffect(() => {
 		if (titleRef.current) {
 			titleRef.current.focus();
 		}
 	}, [titleRef]);
+	// The title wraps onto more lines instead of scrolling sideways
+	useEffect(() => {
+		const el = titleRef.current;
+		if (el) {
+			el.style.height = "auto";
+			el.style.height = `${el.scrollHeight}px`;
+		}
+	}, [title]);
+
+	const openRef = useRef<HTMLButtonElement>(null);
+	useEffect(() => {
+		if (openRef.current) setIcon(openRef.current, "file-text");
+	}, [openRef]);
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -525,26 +537,34 @@ export const EditEvent = ({
 
 	return (
 		<>
-			<div>
-				<p style={{ float: "right" }}>
-					{<button onClick={() => setExpanded(!expanded)}>Expand</button>}
-				</p>
-				<p style={{ float: "right" }}>
-					{open && <button onClick={open}>Open Note</button>}
-				</p>
-			</div>
-
-			{<form style={{ visibility: expanded ? 'visible' : 'hidden', height: expanded ? undefined : 0 }} onSubmit={handleSubmit}>
-				<p>
-					<input
+			{<form onSubmit={handleSubmit}>
+				<p style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
+					<textarea
 						ref={titleRef}
-						type="text"
 						id="title"
+						rows={1}
 						value={title}
 						placeholder={"Add title"}
 						required
-						onChange={makeChangeListener(setTitle, (x) => x)}
+						style={{ flex: 1, resize: "none", overflow: "hidden" }}
+						onChange={(e) => setTitle(e.target.value.replace(/\n/g, " "))}
+						onKeyDown={(e) => {
+							// Enter saves, like the old one-line input
+							if (e.key === "Enter") {
+								e.preventDefault();
+								if (!e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) e.currentTarget.form?.requestSubmit();
+							}
+						}}
 					/>
+					{open && (
+						<button
+							ref={openRef}
+							type="button"
+							className="clickable-icon"
+							aria-label="Open note"
+							onClick={open}
+						/>
+					)}
 				</p>
 				<p>
 					{false && <select
