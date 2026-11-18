@@ -268,6 +268,7 @@ export function renderCalendar(
 
 				el.querySelector(".fc-event-main-frame")?.append(duration);
 			}
+			if (!isMobile) addOverflowPopover(el, event.title);
 			if (toggleTask) {
 				if (event.extendedProps.isTask) {
 					const checkbox = document.createElement("input");
@@ -305,6 +306,8 @@ export function renderCalendar(
 			}
 		},
 
+		eventWillUnmount: ({ el }) => (el as any).ofcHidePopover?.(),
+
 		longPressDelay: settings?.longPressDelay,
 	});
 
@@ -339,4 +342,65 @@ export function renderCalendar(
 	}
 
 	return cal;
+}
+
+/** True when part of the event's text is cut off or under the duration label. */
+function isTextHidden(el: HTMLElement): boolean {
+	const cut = (e: Element | null) =>
+		!!e &&
+		(e.scrollHeight > e.clientHeight + 1 ||
+			e.scrollWidth > e.clientWidth + 1);
+	if (
+		cut(el) ||
+		cut(el.querySelector(".fc-event-title")) ||
+		cut(el.querySelector(".fc-event-time"))
+	) {
+		return true;
+	}
+	// Hidden by CSS (time label of short events)
+	const time = el.querySelector<HTMLElement>(".fc-event-time");
+	if (time && time.offsetParent === null && time.textContent) {
+		return true;
+	}
+	const title = el.querySelector(".fc-event-title");
+	const duration = el.querySelector(".fc-event-main-frame > p");
+	if (title && duration) {
+		const range = document.createRange();
+		range.selectNodeContents(title);
+		const text = range.getBoundingClientRect();
+		const label = duration.getBoundingClientRect();
+		return text.bottom > label.top + 1 && text.right > label.left + 1;
+	}
+	return false;
+}
+
+/** On hover, shows the event's time and full title, only when some of it is hidden. */
+function addOverflowPopover(el: HTMLElement, title: string) {
+	let popover: HTMLElement | null = null;
+	const hide = () => {
+		popover?.remove();
+		popover = null;
+	};
+	el.addEventListener("mouseenter", () => {
+		hide();
+		if (!el.isConnected || !isTextHidden(el)) return;
+		popover = document.body.createDiv({ cls: "ofc-event-popover" });
+		const time = el.querySelector(".fc-event-time")?.textContent;
+		if (time) popover.createDiv({ cls: "ofc-event-popover-time", text: time });
+		popover.createDiv({ text: title });
+
+		const rect = el.getBoundingClientRect();
+		const box = popover.getBoundingClientRect();
+		let left = rect.right + 6;
+		if (left + box.width > window.innerWidth - 8) {
+			left = Math.max(8, rect.left - box.width - 6);
+		}
+		const top = Math.min(rect.top, window.innerHeight - box.height - 8);
+		popover.style.left = `${left}px`;
+		popover.style.top = `${Math.max(8, top)}px`;
+	});
+	el.addEventListener("mouseleave", hide);
+	el.addEventListener("mousedown", hide);
+	// The event can be removed while hovered (drag, rerender): eventWillUnmount calls this
+	(el as any).ofcHidePopover = hide;
 }
