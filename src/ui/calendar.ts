@@ -259,6 +259,12 @@ export function renderCalendar(
 				duration.style.position = "absolute";
 				duration.style.bottom = "0";
 				duration.style.right = "0";
+				// Same color as the event, so the title under it is hidden
+				duration.style.margin = "0";
+				duration.style.padding = "0 3px";
+				duration.style.borderRadius = "3px";
+				duration.style.backgroundColor =
+					getComputedStyle(el).backgroundColor;
 
 				el.querySelector(".fc-event-main-frame")?.append(duration);
 			}
