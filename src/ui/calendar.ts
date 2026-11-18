@@ -350,16 +350,11 @@ function isTextHidden(el: HTMLElement): boolean {
 		!!e &&
 		(e.scrollHeight > e.clientHeight + 1 ||
 			e.scrollWidth > e.clientWidth + 1);
+	// Not the event box itself: its resize handles stick out 4px, so it always looks cut
 	if (
-		cut(el) ||
 		cut(el.querySelector(".fc-event-title")) ||
 		cut(el.querySelector(".fc-event-time"))
 	) {
-		return true;
-	}
-	// Hidden by CSS (time label of short events)
-	const time = el.querySelector<HTMLElement>(".fc-event-time");
-	if (time && time.offsetParent === null && time.textContent) {
 		return true;
 	}
 	const title = el.querySelector(".fc-event-title");
