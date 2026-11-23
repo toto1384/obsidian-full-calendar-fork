@@ -98,7 +98,7 @@ export default class FullCalendarPlugin extends Plugin {
 		const markdownPreview = container.closest(
 			".markdown-preview-view"
 		) as HTMLElement | null;
-		if (markdownPreview) markdownPreview.style.overflowY = "hidden";
+		markdownPreview?.addClass("ofc-no-scroll");
 
 		return cal;
 	};
@@ -362,10 +362,6 @@ export default class FullCalendarPlugin extends Plugin {
 		});
 	}
 
-	onunload() {
-		this.app.workspace.detachLeavesOfType(FULL_CALENDAR_VIEW_TYPE);
-		this.app.workspace.detachLeavesOfType(FULL_CALENDAR_SIDEBAR_VIEW_TYPE);
-	}
 
 	async loadSettings() {
 		this.settings = Object.assign(

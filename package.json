@@ -1,6 +1,6 @@
 {
     "name": "full-calendar-plus",
-    "version": "0.12.0",
+    "version": "0.12.1",
     "description": "Keep your calendar in your vault. A maintained fork of Full Calendar.",
     "main": "main.js",
     "scripts": {

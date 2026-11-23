@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: © 2019 EteSync Authors
 // SPDX-License-Identifier: MPL-2.0
 
-// Disable some style eslint rules for things we can't control
-/* eslint-disable @typescript-eslint/camelcase, @typescript-eslint/class-name-casing */
 
 declare module "ical.js" {
     function parse(input: string): any[];

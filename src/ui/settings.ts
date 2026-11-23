@@ -192,7 +192,7 @@ export class FullCalendarSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl("h2", { text: "Calendar Preferences" });
+        new Setting(containerEl).setName("Calendar preferences").setHeading();
         new Setting(containerEl)
             .setName("Desktop Initial View")
             .setDesc("Choose the initial view range on desktop devices.")
@@ -263,7 +263,7 @@ export class FullCalendarSettingTab extends PluginSettingTab {
                 });
             });
 
-        containerEl.createEl("h2", { text: "Task Integration" });
+        new Setting(containerEl).setName("Task integration").setHeading();
 
         const tasksPlugin = (this.app as any).plugins?.plugins?.[
             "obsidian-tasks-plugin"
@@ -301,7 +301,7 @@ export class FullCalendarSettingTab extends PluginSettingTab {
 
         this.displayCategories(containerEl);
 
-        containerEl.createEl("h2", { text: "Manage Calendars" });
+        new Setting(containerEl).setName("Manage calendars").setHeading();
         addCalendarButton(
             this.app,
             this.plugin,
@@ -316,7 +316,6 @@ export class FullCalendarSettingTab extends PluginSettingTab {
         );
 
         const sourcesDiv = containerEl.createDiv();
-        sourcesDiv.style.display = "block";
         let sourceList = ReactDOM.render(
             createElement(CalendarSettings, {
                 sources: this.plugin.settings.calendarSources,
@@ -331,7 +330,7 @@ export class FullCalendarSettingTab extends PluginSettingTab {
     }
 
     displayCategories(containerEl: HTMLElement) {
-        containerEl.createEl("h2", { text: "Categories" });
+        new Setting(containerEl).setName("Categories").setHeading();
         containerEl.createEl("p", {
             cls: "setting-item-description",
             text: "Each calendar can have a default category, and each event can override it. The toolbar button switches event colors between calendars and categories. In category view, per-event colors are ignored.",

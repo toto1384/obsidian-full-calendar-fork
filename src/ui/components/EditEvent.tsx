@@ -178,8 +178,9 @@ export const EditEvent = ({
 	useEffect(() => {
 		const el = titleRef.current;
 		if (el) {
-			el.style.height = "auto";
-			el.style.height = `${el.scrollHeight}px`;
+			// Reset to auto first, so scrollHeight can also shrink (CSS in overrides.css)
+			el.setCssProps({ "--ofc-title-height": "auto" });
+			el.setCssProps({ "--ofc-title-height": `${el.scrollHeight}px` });
 		}
 	}, [title]);
 
@@ -535,6 +536,7 @@ export const EditEvent = ({
 					<textarea
 						ref={titleRef}
 						id="title"
+						className="ofc-title-input"
 						rows={1}
 						value={title}
 						placeholder={"Add title"}
@@ -724,6 +726,7 @@ export const EditEvent = ({
 
 									{/* Start Handle */}
 									<div
+										className="ofc-time-handle"
 										style={{
 											position: 'absolute',
 											width: '20px',
@@ -740,12 +743,11 @@ export const EditEvent = ({
 										}}
 										onTouchStart={(e) => handleTouchStart('start', e)}
 										onMouseDown={(e) => handleMouseDown('start', e)}
-										onMouseEnter={(e) => (e.target as any).style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'}
-										onMouseLeave={(e) => (e.target as any).style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}
 									/>
 
 									{/* End Handle */}
 									<div
+										className="ofc-time-handle"
 										style={{
 											position: 'absolute',
 											width: '20px',
@@ -762,8 +764,6 @@ export const EditEvent = ({
 										}}
 										onMouseDown={(e) => handleMouseDown('end', e)}
 										onTouchStart={(e) => handleTouchStart('end', e)}
-										onMouseEnter={(e) => (e.target as any).style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'}
-										onMouseLeave={(e) => (e.target as any).style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}
 									/>
 								</div>
 

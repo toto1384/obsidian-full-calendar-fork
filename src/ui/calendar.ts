@@ -211,7 +211,7 @@ export function renderCalendar(
 					e.preventDefault();
 					dayHeaderClick(date);
 				});
-				el.style.cursor = "pointer";
+				el.addClass("ofc-clickable");
 			}
 		},
 
@@ -240,16 +240,11 @@ export function renderCalendar(
 					event.start,
 					event.end,
 				);
-				duration.style.fontSize = "10px";
-				duration.style.position = "absolute";
-				duration.style.bottom = "0";
-				duration.style.right = "0";
+				duration.addClass("ofc-event-duration");
 				// Same color as the event, so the title under it is hidden
-				duration.style.margin = "0";
-				duration.style.padding = "0 3px";
-				duration.style.borderRadius = "3px";
-				duration.style.backgroundColor =
-					getComputedStyle(el).backgroundColor;
+				duration.setCssStyles({
+					backgroundColor: getComputedStyle(el).backgroundColor,
+				});
 
 				el.querySelector(".fc-event-main-frame")?.append(duration);
 			}
@@ -382,8 +377,10 @@ function addOverflowPopover(el: HTMLElement, title: string) {
 			left = Math.max(8, rect.left - box.width - 6);
 		}
 		const top = Math.min(rect.top, window.innerHeight - box.height - 8);
-		popover.style.left = `${left}px`;
-		popover.style.top = `${Math.max(8, top)}px`;
+		popover.setCssStyles({
+			left: `${left}px`,
+			top: `${Math.max(8, top)}px`,
+		});
 	});
 	el.addEventListener("mouseleave", hide);
 	el.addEventListener("mousedown", hide);

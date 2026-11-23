@@ -118,3 +118,51 @@
 .ofc-alt-held .fc .fc-daygrid-day {
 	cursor: crosshair;
 }
+
+/* Replaces inline styles (Obsidian review: no static style assignments) */
+.markdown-preview-view.ofc-no-scroll {
+	overflow-y: hidden;
+}
+
+.ofc-clickable {
+	cursor: pointer;
+}
+
+.ofc-event-duration {
+	font-size: 10px;
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	margin: 0;
+	padding: 0 3px;
+	border-radius: 3px;
+}
+
+.ofc-time-handle:hover {
+	box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.ofc-onboard {
+	height: 100%;
+}
+
+.ofc-onboard-center {
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.ofc-onboard-button {
+	position: fixed;
+}
+
+/* Zoom buttons in the toolbar (view.ts) */
+.ofc-zoomed .fc .fc-timegrid-slot {
+	height: var(--ofc-slot-height) !important;
+}
+
+/* Event title in the edit form grows with its text (EditEvent.tsx) */
+.ofc-title-input {
+	height: var(--ofc-title-height, auto);
+}

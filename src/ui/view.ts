@@ -589,16 +589,11 @@ export class CalendarView extends ItemView {
 			const currentHeight = window.getComputedStyle(elements[0]).height;
 			const heightInPx = parseFloat(currentHeight);
 
-			// Find existing style tag or create new one
-			let style = document.getElementById('fc-height-override');
-			if (!style) {
-				style = document.createElement('style');
-				style.id = 'fc-height-override';
-				document.head.appendChild(style);
-			}
-
-			// Update the CSS rule
-			style.textContent = `.fc-timegrid-slot { height: ${heightInPx + (increment ? 16 : -16)}px !important; }`;
+			// Applies to every calendar view (rule in overrides.css)
+			document.body.addClass('ofc-zoomed');
+			document.body.setCssProps({
+				'--ofc-slot-height': `${heightInPx + (increment ? 16 : -16)}px`,
+			});
 
 			this.fullCalendarView?.destroy()
 			this.fullCalendarView?.render()

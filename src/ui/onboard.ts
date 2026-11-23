@@ -8,19 +8,14 @@ export function renderOnboarding(
     plugin: FullCalendarPlugin,
     el: HTMLElement
 ) {
-    el.style.height = "100%";
-    const nocal = el.createDiv();
-    nocal.style.height = "100%";
-    nocal.style.display = "flex";
-    nocal.style.alignItems = "center";
-    nocal.style.justifyContent = "center";
+    el.addClass("ofc-onboard");
+    const nocal = el.createDiv("ofc-onboard-center");
     const notice = nocal.createDiv();
     notice.createEl("h1").textContent = "No calendar available";
     notice.createEl("p").textContent =
         "Thanks for downloading Full Calendar! Create a calendar below to begin.";
 
-    const container = notice.createDiv();
-    container.style.position = "fixed";
+    const container = notice.createDiv("ofc-onboard-button");
     addCalendarButton(app, plugin, container, async (source: CalendarInfo) => {
         const { calendarSources } = plugin.settings;
         calendarSources.push(source);
