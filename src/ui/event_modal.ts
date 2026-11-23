@@ -144,7 +144,6 @@ export function launchCreateModal(
                 closeModal();
             },
             onGhostEventChange: (event, calendarId) => {
-                console.log('Modal onGhostEventChange callback called:', { event: !!event, calendarId });
                 plugin.cache.setGhostEvent(event, calendarId);
             },
         })

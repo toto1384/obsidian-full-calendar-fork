@@ -235,7 +235,6 @@ export function toEventInput(
 				}
 			}
 		}
-		// console.log("🚀 ~ event:", event)
 	} else if (frontmatter.type === "single") {
 		if (!frontmatter.allDay) {
 			const start = combineDateTimeStrings(

@@ -151,7 +151,6 @@ export function validateEvent(obj: unknown): OFCEvent | null {
     try {
         return parseEvent(obj);
     } catch (e) {
-        console.log(e)
         console.debug("Parsing failed with errors", { obj, message: e, });
         return null;
     }

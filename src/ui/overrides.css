@@ -81,19 +81,6 @@
 	border-width: 1px !important;
 }
 
-/* Time period background colors - specific to time grid slot lanes */
-.fc-timegrid-slot-lane.ofc-morning-slot {
-	background-color: rgba(34, 197, 94, 0.15) !important; /* Green semi-transparent */
-}
-
-.fc-timegrid-slot-lane.ofc-afternoon-slot {
-	background-color: rgba(59, 130, 246, 0.15) !important; /* Blue semi-transparent */
-}
-
-.fc-timegrid-slot-lane.ofc-evening-slot {
-	background-color: rgba(251, 191, 36, 0.15) !important; /* Yellow semi-transparent */
-}
-
 /* Hide time label on short events so only the title is visible */
 .fc-timegrid-event-short .fc-event-time {
 	display: none !important;
@@ -118,4 +105,16 @@
 .ofc-event-popover-time {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
+}
+
+/* Alt (Option) + drag creates a new event on top of existing ones (calendar.ts installAltCreate) */
+.ofc-alt-held .fc .fc-event,
+.ofc-alt-held .fc .fc-timegrid-event-harness,
+.ofc-alt-held .fc .fc-daygrid-event-harness {
+	pointer-events: none;
+}
+
+.ofc-alt-held .fc .fc-timegrid-col,
+.ofc-alt-held .fc .fc-daygrid-day {
+	cursor: crosshair;
 }

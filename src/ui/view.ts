@@ -465,7 +465,6 @@ export class CalendarView extends ItemView {
 			// Ctrl+Left Arrow - Previous period
 			if (event.ctrlKey && event.key === 'ArrowLeft') {
 				event.preventDefault();
-				console.log('Calendar: Previous period');
 				this.fullCalendarView.prev();
 				return;
 			}
@@ -473,7 +472,6 @@ export class CalendarView extends ItemView {
 			// Ctrl+Right Arrow - Next period
 			if (event.ctrlKey && event.key === 'ArrowRight') {
 				event.preventDefault();
-				console.log('Calendar: Next period');
 				this.fullCalendarView.next();
 				return;
 			}
@@ -482,7 +480,6 @@ export class CalendarView extends ItemView {
 			if (event.ctrlKey && event.key === 'ArrowUp') {
 				event.preventDefault();
 				const currentView = this.fullCalendarView.view.type;
-				console.log('Calendar: Current view:', currentView);
 
 				let nextView: string;
 				switch (currentView) {
@@ -503,7 +500,6 @@ export class CalendarView extends ItemView {
 						break;
 				}
 
-				console.log('Calendar: Switching to view:', nextView);
 				this.fullCalendarView.changeView(nextView);
 				return;
 			}
@@ -512,7 +508,6 @@ export class CalendarView extends ItemView {
 			if (event.ctrlKey && event.key === 'ArrowDown') {
 				event.preventDefault();
 				const currentView = this.fullCalendarView.view.type;
-				console.log('Calendar: Current view:', currentView);
 
 				let nextView: string;
 				switch (currentView) {
@@ -533,7 +528,6 @@ export class CalendarView extends ItemView {
 						break;
 				}
 
-				console.log('Calendar: Switching to view:', nextView);
 				this.fullCalendarView.changeView(nextView);
 				return;
 			}

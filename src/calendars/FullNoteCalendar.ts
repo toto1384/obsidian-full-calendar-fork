@@ -127,7 +127,6 @@ function modifyFrontmatterString(
             .map(([k, v]) => stringifyYamlLine(k, v));
         page = "\n" + page;
     } else {
-        console.log("aaaa", parseYaml(extractFrontmatter(page)!))
 
         // const linesAdded: Set<string | number | symbol> = new Set();
         // // Modify rows in-place.

@@ -64,6 +64,21 @@ interface ExtraRenderProps {
 	forceNarrow?: boolean;
 }
 
+// While Alt (Option) is held, events ignore the mouse (CSS in overrides.css),
+// so a drag starts a new selection on the slots underneath, even on top of
+// existing events. Installed once per window; it only toggles a body class.
+const altCreateWindows = new WeakSet<Window>();
+function installAltCreate(win: Window) {
+	if (altCreateWindows.has(win)) return;
+	altCreateWindows.add(win);
+	const set = (held: boolean) =>
+		win.document.body.classList.toggle("ofc-alt-held", held);
+	win.addEventListener("keydown", (e) => e.key === "Alt" && set(true));
+	win.addEventListener("keyup", (e) => e.key === "Alt" && set(false));
+	win.addEventListener("mousemove", (e) => set(e.altKey));
+	win.addEventListener("blur", () => set(false));
+}
+
 export function renderCalendar(
 	containerEl: HTMLElement,
 	eventSources: EventSourceInput[],
@@ -175,37 +190,6 @@ export function renderCalendar(
 		eventClick,
 		dateClick,
 
-		slotLaneClassNames: (arg) => {
-			// Only apply to time grid views and when we have a valid date
-			if (!arg || !arg.date || !arg.view) {
-				return [];
-			}
-
-			// Only apply to timeGrid views (day, week, 3-day)
-			const viewType = arg.view.type;
-			if (!viewType.startsWith("timeGrid")) {
-				return [];
-			}
-
-			const hour = arg.date.getHours();
-
-			// 7am to 1pm (07:00-13:00) - Morning/Green
-			if (hour >= 7 && hour < 13) {
-				return ["ofc-morning-slot"];
-			}
-			// 1pm to 5pm (13:00-17:00) - Afternoon/Blue
-			else if (hour >= 13 && hour < 17) {
-				return ["ofc-afternoon-slot"];
-			}
-			// 5pm to 11pm (17:00-23:00) - Evening/Yellow
-			else if (hour >= 17 && hour < 23) {
-				return ["ofc-evening-slot"];
-			}
-
-			// Return empty array for other times (11pm-7am)
-			return [];
-		},
-
 		selectable: select && true,
 		selectMirror: select && true,
 		select:
@@ -246,6 +230,7 @@ export function renderCalendar(
 				el.querySelector(".fc-list-event-title");
 
 			if (
+				!event.allDay &&
 				event.start &&
 				event.end &&
 				moment(event.end).diff(event.start, "minutes") > 30
@@ -326,6 +311,7 @@ export function renderCalendar(
 	}
 
 	cal.render();
+	if (select) installAltCreate(containerEl.ownerDocument.defaultView ?? window);
 
 	// If the container has zero size at render time (e.g. rendered inside a
 	// hidden tab), FullCalendar skips slot-height calculations and the time

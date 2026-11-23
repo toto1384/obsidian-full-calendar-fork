@@ -1,7 +1,7 @@
 {
-    "name": "obsidian-full-calendar",
-    "version": "0.11.0",
-    "description": "Obsidian integration with Full Calendar (fullcalendar.io)",
+    "name": "full-calendar-plus",
+    "version": "0.12.0",
+    "description": "Keep your calendar in your vault. A maintained fork of Full Calendar.",
     "main": "main.js",
     "scripts": {
         "dev": "node esbuild.config.mjs",
@@ -17,9 +17,8 @@
     },
     "keywords": [],
     "author": {
-        "name": "Davis Haupt",
-        "email": "contact@davishaupt.com",
-        "url": "https://davi.sh"
+        "name": "Totolici Alexandru",
+        "url": "https://github.com/toto1384"
     },
     "license": "MIT",
     "devDependencies": {
@@ -69,5 +68,12 @@
         "react-dom": "^17.0.2",
         "rrule": "^2.7.2",
         "zod": "^3.21.4"
-    }
+    },
+    "contributors": [
+        {
+            "name": "Davis Haupt",
+            "email": "contact@davishaupt.com",
+            "url": "https://davi.sh"
+        }
+    ]
 }

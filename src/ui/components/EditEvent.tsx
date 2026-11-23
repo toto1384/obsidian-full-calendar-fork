@@ -191,7 +191,6 @@ export const EditEvent = ({
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
 			// Cmd+Enter / Ctrl+Enter to save
-			console.log(event.key, event.ctrlKey, event.metaKey, event.shiftKey);
 			if (event.ctrlKey && event.key === 'Enter') {
 				event.preventDefault();
 				const form = document.querySelector('form') as HTMLFormElement;
@@ -343,16 +342,13 @@ export const EditEvent = ({
 		};
 
 		const calendarId = calendars[calendarIndex].id;
-		console.log('Creating ghost event:', { ghostEvent, calendarId, calendarIndex });
 		onGhostEventChange(ghostEvent, calendarId);
 	}, [allDay, startTime, endTime, isRecurring, daysOfWeek, date, endRecur, endDate, isTask, complete, calendarIndex, calendars, onGhostEventChange, eventColor, category]);
 
 	// Debounced update for title changes
 	useEffect(() => {
-		console.log('Title changed, debouncing ghost event update');
 
 		const debounceTimer = setTimeout(() => {
-			console.log('Debounced title ghost event update executing');
 			if (!onGhostEventChange || !calendars[calendarIndex]?.id) return;
 
 			const ghostEvent: OFCEvent = {
@@ -386,19 +382,16 @@ export const EditEvent = ({
 			};
 
 			const calendarId = calendars[calendarIndex].id;
-			console.log('Creating debounced ghost event:', { ghostEvent, calendarId });
 			onGhostEventChange(ghostEvent, calendarId);
 		}, 1500);
 
 		return () => {
-			console.log('Clearing debounce timer for title');
 			clearTimeout(debounceTimer);
 		};
 	}, [title]);
 
 	// Immediate update for non-title changes
 	useEffect(() => {
-		console.log('Non-title field changed, immediate ghost event update');
 		updateGhostEvent();
 	}, [allDay, startTime, endTime, isRecurring, daysOfWeek, date, endRecur, endDate, isTask, complete, calendarIndex, calendars, eventColor, category]);
 

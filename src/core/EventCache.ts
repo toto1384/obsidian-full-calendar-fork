@@ -201,7 +201,6 @@ export default class EventCache {
      * Reload all events by clearing the cache and repopulating from all sources.
      */
     async reloadAll(): Promise<void> {
-        console.log("Reloading all events...");
 
         // Clear the store completely
         this.store.clear();
@@ -229,7 +228,6 @@ export default class EventCache {
         // Force revalidation of remote calendars (will update view via updateCalendar callback)
         this.revalidateRemoteCalendars(true);
 
-        console.log("All events reloaded successfully");
     }
 
     /**
@@ -600,7 +598,6 @@ export default class EventCache {
                     skipDates: [newSkipDate]
                 } as any
 
-                console.log("🚀 ~ EventCache ~ newRecurringEvent:", newRecurringEvent)
 
                 const newRecurringLocation = await calendar.createEvent(newRecurringEvent)
                 this.ignoreNextChange(newRecurringLocation.file.path)
@@ -827,7 +824,6 @@ export default class EventCache {
      * is available for any remote calendar, its data will be updated in the cache and any subscribing views.
      */
     revalidateRemoteCalendars(force = false) {
-        console.log('start revalidation')
         const prom: Promise<any[]> = new Promise((resolve, reject) => {
 
             if (this.revalidating) {
@@ -855,7 +851,6 @@ export default class EventCache {
                     .revalidate()
                     .then(() => calendar.getEvents())
                     .then((events) => {
-                        console.log('ss2')
                         const deletedEvents = [
                             ...this.store.deleteEventsInCalendar(calendar),
                         ];
@@ -873,14 +868,12 @@ export default class EventCache {
                                 event,
                             });
                         });
-                        console.log('ss3')
                         this.updateCalendar({
                             id: calendar.id,
                             editable: false,
                             color: calendar.color,
                             events: newEvents,
                         });
-                        console.log('ss4')
                     });
             });
             Promise.allSettled(promises).then((results) => {
@@ -895,7 +888,6 @@ export default class EventCache {
             });
 
         })
-        console.log('end revalidation')
         prom.then(errors => {
             if (errors.length > 0) {
                 new Notice(

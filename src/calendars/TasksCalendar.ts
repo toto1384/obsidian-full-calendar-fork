@@ -64,7 +64,6 @@ export default class TasksCalendar extends RemoteCalendar {
 
 			this.events = this.convertTasksToEvents(uniqueTasks);
 
-			console.log("events validated", this.events);
 		} catch (e) {
 			console.error("Failed to fetch tasks:", e);
 			this.events = [];
