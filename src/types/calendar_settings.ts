@@ -19,6 +19,8 @@ const calendarOptionsSchema = z.discriminatedUnion("type", [
 const colorValidator = z.object({
     color: z.string(),
     defaultCategory: z.string().optional(),
+    // Archived calendars still show their events, but are not offered when creating an event.
+    archived: z.boolean().optional(),
 });
 
 export type TestSource = {

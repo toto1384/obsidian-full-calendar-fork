@@ -17,6 +17,9 @@ Keep your calendar in your vault. Every event is a note, so you can write about 
 ### Event categories
 Create categories with a name and a color in the settings. Give each calendar a default category, and override it per event with a `category` property. A toolbar button and the **Toggle calendar/category colors** command switch the event colors between calendar colors and category colors.
 
+### Archived calendars
+Finished with a calendar, such as a past client or project? Tick **Archived** next to it in the settings. Its events keep showing on the calendar, but it no longer appears in the calendar list when you create an event. You can still edit events that are already in it.
+
 ### Per-event colors
 Give any single event its own color with the color picker in the event form. Dragging or resizing an event keeps its color and category.
 

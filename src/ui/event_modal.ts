@@ -109,12 +109,17 @@ export function deleteEventWithPrompt(
     }).open();
 }
 
-export function launchCreateModal(
-    plugin: FullCalendarPlugin,
-    partialEvent: Partial<OFCEvent>
-) {
-    const calendars = [...plugin.cache.calendars.entries()]
-        .filter(([_, cal]) => cal instanceof EditableCalendar)
+/**
+ * Calendars an event can be saved to: editable and not archived. `keepId` keeps one archived calendar in the
+ * list, so an event that already lives there can still be edited in place.
+ */
+function selectableCalendars(plugin: FullCalendarPlugin, keepId?: string) {
+    return [...plugin.cache.calendars.entries()]
+        .filter(
+            ([id, cal]) =>
+                cal instanceof EditableCalendar &&
+                (!cal.archived || id === keepId)
+        )
         .map(([id, cal]) => {
             return {
                 id,
@@ -123,6 +128,19 @@ export function launchCreateModal(
                 defaultCategory: cal.defaultCategory,
             };
         });
+}
+
+export function launchCreateModal(
+    plugin: FullCalendarPlugin,
+    partialEvent: Partial<OFCEvent>
+) {
+    const calendars = selectableCalendars(plugin);
+    if (calendars.length === 0) {
+        new Notice(
+            "No calendar to add the event to: every editable calendar is archived."
+        );
+        return;
+    }
 
     const modal = new ReactModal(plugin.app, async (closeModal) =>
         React.createElement(EditEvent, {
@@ -170,16 +188,7 @@ export function launchEditModal(
     }
     const calId = plugin.cache.getInfoForEditableEvent(eventId).calendar.id;
 
-    const calendars = [...plugin.cache.calendars.entries()]
-        .filter(([_, cal]) => cal instanceof EditableCalendar)
-        .map(([id, cal]) => {
-            return {
-                id,
-                type: cal.type,
-                name: cal.name,
-                defaultCategory: cal.defaultCategory,
-            };
-        });
+    const calendars = selectableCalendars(plugin, calId);
 
     const calIdx = calendars.findIndex(({ id }) => id === calId);
 

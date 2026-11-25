@@ -11,6 +11,8 @@ export abstract class Calendar {
     color: string;
     // Category for events in this calendar that do not set their own.
     defaultCategory?: string;
+    // Archived: events still show, but the calendar is not offered when creating an event.
+    archived?: boolean;
 
     constructor(color: string) {
         this.color = color;

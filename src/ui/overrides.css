@@ -166,3 +166,18 @@
 .ofc-title-input {
 	height: var(--ofc-title-height, auto);
 }
+
+/* Archived calendars in settings (CalendarSetting.tsx): dimmed row, "Archived" switch at the end */
+.ofc-calendar-archived > :not(.ofc-calendar-archive-toggle) {
+	opacity: 0.5;
+}
+.ofc-calendar-archive-toggle {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 8px;
+	white-space: nowrap;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	cursor: pointer;
+}

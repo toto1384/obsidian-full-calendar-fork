@@ -154,6 +154,7 @@ export default class EventCache {
                 const cal = this.calendarInitializers[s.type](s);
                 if (cal) {
                     cal.defaultCategory = s.defaultCategory;
+                    cal.archived = s.archived;
                 }
                 return cal || [];
             })

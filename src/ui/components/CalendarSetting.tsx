@@ -117,6 +117,7 @@ interface CalendarSettingsProps {
     categories: string[];
     onColorChange: (s: string) => void;
     onDefaultCategoryChange: (category: string | undefined) => void;
+    onArchivedChange: (archived: boolean) => void;
     deleteCalendar: () => void;
 }
 
@@ -125,11 +126,16 @@ export const CalendarSettingRow = ({
     categories,
     onColorChange,
     onDefaultCategoryChange,
+    onArchivedChange,
     deleteCalendar,
 }: CalendarSettingsProps) => {
     const isCalDAV = setting.type === "caldav";
     return (
-        <div className="setting-item">
+        <div
+            className={
+                "setting-item" + (setting.archived ? " ofc-calendar-archived" : "")
+            }
+        >
             <button
                 type="button"
                 onClick={deleteCalendar}
@@ -168,6 +174,17 @@ export const CalendarSettingRow = ({
                 value={setting.color}
                 onChange={(e) => onColorChange(e.target.value)}
             />
+            <label
+                className="ofc-calendar-archive-toggle"
+                title="Archived calendars keep showing their events, but are not offered when you create an event."
+            >
+                <input
+                    type="checkbox"
+                    checked={!!setting.archived}
+                    onChange={(e) => onArchivedChange(e.target.checked)}
+                />
+                Archived
+            </label>
         </div>
     );
 };
@@ -220,6 +237,21 @@ export class CalendarSettings extends React.Component<
                                 sources: [
                                     ...state.sources.slice(0, idx),
                                     { ...state.sources[idx], color },
+                                    ...state.sources.slice(idx + 1),
+                                ],
+                                dirty: true,
+                            }))
+                        }
+                        onArchivedChange={(archived) =>
+                            this.setState((state) => ({
+                                sources: [
+                                    ...state.sources.slice(0, idx),
+                                    // Unarchiving drops the key, so saved settings stay as before
+                                    archived
+                                        ? { ...state.sources[idx], archived }
+                                        : (({ archived: _, ...rest }) => rest)(
+                                              state.sources[idx]
+                                          ),
                                     ...state.sources.slice(idx + 1),
                                 ],
                                 dirty: true,
