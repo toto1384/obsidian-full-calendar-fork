@@ -10,23 +10,64 @@ import { DateTime } from "luxon";
 // that break Obsidian note titles/links (# ^ [ ] |). We strip these from the
 // FILENAME only — the full, original title (with ":" etc.) is preserved in the
 // event's `title` frontmatter property, which is what the calendar reads back.
+// Leading dots are stripped too: a name like ". 2026-10-16 17,00.md" is a
+// hidden file, which Obsidian never indexes, so the event would not show.
 const sanitizeForFilename = (title: string): string =>
     title
         .replace(/[\\/:*?"<>|#^[\]]/g, " ")
         .replace(/\s+/g, " ")
-        .trim();
+        .trim()
+        .replace(/^[.\s]+/, "");
 
-const basenameFromEvent = (event: OFCEvent): string => {
-    const formattedTitle = sanitizeForFilename(event.title);
+// File names are limited to 255 bytes (UTF-8) on most file systems. Keep the
+// whole basename well below that, so long titles still make a valid file.
+const MAX_BASENAME_BYTES = 200;
+const MIN_TITLE_BYTES = 40;
+const encoder = new TextEncoder();
+const byteLength = (s: string) => encoder.encode(s).length;
+
+// Cuts on code points, so an emoji or accented letter is never split.
+const truncateToBytes = (s: string, maxBytes: number): string => {
+    if (byteLength(s) <= maxBytes) {
+        return s;
+    }
+    let out = "";
+    let bytes = 0;
+    for (const ch of s) {
+        const n = byteLength(ch);
+        if (bytes + n > maxBytes) {
+            break;
+        }
+        out += ch;
+        bytes += n;
+    }
+    return out.replace(/[\s.,]+$/, "");
+};
+
+export const basenameFromEvent = (event: OFCEvent): string => {
+    const time = event.allDay ? "allDay" : event.startTime.replace(":", ",");
+    let suffix: string;
     switch (event.type) {
         case undefined:
         case "single":
-            return `${formattedTitle} ${event.date} ${event.allDay ? "allDay" : event.startTime.replace(':', ",")}`;
+            suffix = `${event.date} ${time}`;
+            break;
         case "recurring":
-            return `${formattedTitle} (Every ${event.daysOfWeek.join(",")}) ${event.allDay ? "allDay" : event.startTime.replace(':', ",")}`;
-        case "rrule":
-            return `${formattedTitle} (${rrulestr(event.rrule).toText()}) ${event.startDate} ${event.allDay ? "allDay" : event.startTime.replace(':', ",")}`;
+            suffix = `(Every ${event.daysOfWeek.join(",")}) ${time}`;
+            break;
+        case "rrule": {
+            const rule = sanitizeForFilename(rrulestr(event.rrule).toText());
+            const tail = ` ${event.startDate} ${time}`;
+            const ruleBytes =
+                MAX_BASENAME_BYTES - MIN_TITLE_BYTES - byteLength(tail) - 3;
+            suffix = `(${truncateToBytes(rule, ruleBytes)})${tail}`;
+            break;
+        }
     }
+    const room = MAX_BASENAME_BYTES - byteLength(suffix) - 1;
+    const title =
+        truncateToBytes(sanitizeForFilename(event.title), room) || "Untitled";
+    return `${title} ${suffix}`;
 };
 
 const filenameForEvent = (event: OFCEvent) => `${basenameFromEvent(event)}.md`;

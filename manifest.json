@@ -1,7 +1,7 @@
 {
 	"id": "full-calendar-plus",
 	"name": "Full Calendar Plus",
-	"version": "0.13.0",
+	"version": "0.13.1",
 	"minAppVersion": "1.5.7",
 	"description": "Keep your calendar in your vault: events as notes, daily notes, ICS and CalDAV calendars, with categories, live previews and keyboard shortcuts. A maintained fork of Full Calendar.",
 	"author": "Totolici Alexandru",

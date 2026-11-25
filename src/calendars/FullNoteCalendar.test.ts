@@ -5,7 +5,7 @@ import { ObsidianInterface } from "src/ObsidianAdapter";
 import { MockApp, MockAppBuilder } from "../../test_helpers/AppBuilder";
 import { FileBuilder } from "../../test_helpers/FileBuilder";
 import { OFCEvent } from "src/types";
-import FullNoteCalendar from "./FullNoteCalendar";
+import FullNoteCalendar, { basenameFromEvent } from "./FullNoteCalendar";
 import { parseEvent } from "../types/schema";
 
 async function assertFailed(func: () => Promise<any>, message: RegExp) {
@@ -324,4 +324,65 @@ describe("Note Calendar Tests", () => {
     // 		.calls[0];
     // 	expect(file.path).toBe(join("events", filename));
     // });
+});
+
+describe("Event file names", () => {
+    const single = (title: string): OFCEvent =>
+        parseEvent({
+            title,
+            type: "single",
+            date: "2026-10-16",
+            allDay: false,
+            startTime: "17:00",
+            endTime: "17:30",
+        });
+    const bytes = (s: string) => new TextEncoder().encode(s).length;
+
+    it("keeps the usual format", () => {
+        expect(basenameFromEvent(single("Gym: legs"))).toBe(
+            "Gym legs 2026-10-16 17,00"
+        );
+    });
+
+    it("never starts with a dot", () => {
+        expect(basenameFromEvent(single("."))).toBe(
+            "Untitled 2026-10-16 17,00"
+        );
+        expect(basenameFromEvent(single("..."))).toBe(
+            "Untitled 2026-10-16 17,00"
+        );
+        expect(basenameFromEvent(single(".plan"))).toBe(
+            "plan 2026-10-16 17,00"
+        );
+        expect(basenameFromEvent(single(":"))).toBe(
+            "Untitled 2026-10-16 17,00"
+        );
+    });
+
+    it("shortens long titles and keeps the date and time", () => {
+        const name = basenameFromEvent(single("word ".repeat(100)));
+        expect(bytes(name)).toBeLessThanOrEqual(200);
+        expect(name.endsWith(" 2026-10-16 17,00")).toBe(true);
+    });
+
+    it("never splits an emoji", () => {
+        const name = basenameFromEvent(single("🏠".repeat(100)));
+        expect(bytes(name)).toBeLessThanOrEqual(200);
+        expect(name).not.toContain("�");
+        expect(name.startsWith("🏠")).toBe(true);
+    });
+
+    it("shortens a long repeat rule", () => {
+        const name = basenameFromEvent(
+            parseEvent({
+                title: "word ".repeat(60),
+                type: "rrule",
+                rrule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR,SA,SU;UNTIL=20271231T000000Z",
+                startDate: "2026-10-16",
+                allDay: true,
+            })
+        );
+        expect(bytes(name)).toBeLessThanOrEqual(200);
+        expect(name.endsWith(" 2026-10-16 allDay")).toBe(true);
+    });
 });
